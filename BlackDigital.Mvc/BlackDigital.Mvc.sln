@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc", "src\BlackDigital.Mvc.csproj", "{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlackDigital.Mvc.Example", "example\BlackDigital.Mvc.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1EF849F3-37B6-4992-AAA5-0DDEE59B68E3}
+	EndGlobalSection
+EndGlobal
