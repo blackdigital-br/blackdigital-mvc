@@ -1,6 +1,7 @@
 ﻿using BlackDigital.Rest;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace BlackDigital.Mvc.Rest
 {
@@ -145,11 +147,18 @@ namespace BlackDigital.Mvc.Rest
 
                 if (parameter.Query != null)
                 {
-                    if (context.Request.Query.TryGetValue(parameter.Query?.Name ?? parameter.Name, 
-                                                out StringValues values))
+                    if (parameter.Query.Type == QueryParameterType.Parameter)
                     {
-                        //TODO: refactor
-                        arguments.Add(Convert.ChangeType(values.First(), parameter.Type));
+                        if (context.Request.Query.TryGetValue(parameter.Query?.Name ?? parameter.Name,
+                                                    out StringValues values))
+                        {
+                            //TODO: refactor
+                            arguments.Add(Convert.ChangeType(values.First(), parameter.Type));
+                        }
+                    }
+                    else
+                    {
+                        arguments.Add(context.Request.QueryString.ToString().FromQueryString(parameter.Type));
                     }
                 }
 

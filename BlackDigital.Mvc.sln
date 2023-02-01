@@ -5,7 +5,9 @@ VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc", "src\BlackDigital.Mvc.csproj", "{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlackDigital.Mvc.Example", "example\BlackDigital.Mvc.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc.Example", "example\BlackDigital.Mvc.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlackDigital.Mvc.Test", "test\BlackDigital.Mvc.Test.csproj", "{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11949A78-DF7F-4018-A974-8C69A462BDCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
