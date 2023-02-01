@@ -37,12 +37,21 @@ namespace BlackDigital.Mvc.Rest
                 throw new ArgumentNullException(nameof(context));
 
             return ValidateMethod(context)
+                    && ValidateAuthorization(context)
                     && ValidateRoute(scopedPath);
         }
 
         private bool ValidateMethod(HttpContext context)
         {
             return context.Request.Method.ToUpper() == Enum.GetName(ActionAttribute.Method)?.ToUpper();
+        }
+
+        private bool ValidateAuthorization(HttpContext context)
+        {
+            if (ActionAttribute.Authorize)
+                return context.User.Identity?.IsAuthenticated ?? false;
+
+            return true;
         }
 
         private bool ValidateRoute(string scopedPath)
