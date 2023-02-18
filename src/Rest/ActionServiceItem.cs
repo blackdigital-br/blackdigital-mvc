@@ -66,18 +66,26 @@ namespace BlackDigital.Mvc.Rest
             var routeParameters = Parameters.Where(p => p.Route != null)
                                             .ToArray();
 
-            if (routeParameters.Length != pathItens.Length)
+            var actionRoutes = ActionAttribute.Route?.Split('/') ?? Array.Empty<string>();
+
+            if (actionRoutes.Length != pathItens.Length)
                 return false;
 
-            for (int i = 0; i < pathItens.Length; i++)
+            foreach (var actionRoute in actionRoutes)
             {
-                var value = pathItens[i];
-                var routeParameter = routeParameters[i];
+                var currentPath = pathItens[actionRoutes.ToList().IndexOf(actionRoute)];
 
-                if (!Regex.IsMatch(routeParameter?.Route?.Name ?? string.Empty, @"{(.+?)}")
-                    && value != routeParameter?.Route?.Name)
+                if (Regex.IsMatch(actionRoute, @"{(.+?)}"))
                 {
-                    return false;
+                    var routeParameter = routeParameters.FirstOrDefault(p => p.Route?.Name == actionRoute);
+
+                    if (routeParameter is null)
+                        return false;
+                }
+                else
+                {
+                    if (actionRoute != currentPath)
+                        return false;
                 }
             }
 
@@ -94,7 +102,7 @@ namespace BlackDigital.Mvc.Rest
             if (serviceInstance is null)
                 throw new NullReferenceException(nameof(serviceInstance));
 
-            var resultMethod = Method.Invoke(serviceInstance, GetParameters(context, serviceProvider, scopedPath));
+            var resultMethod = Method.Invoke(serviceInstance, await GetParameters(context, serviceProvider, scopedPath));
 
             if (Method.ReturnType != null)
             {
@@ -116,7 +124,7 @@ namespace BlackDigital.Mvc.Rest
             }
         }
 
-        private object?[] GetParameters(HttpContext context, IServiceProvider serviceProvider, string scopedPath)
+        private async Task<object?[]> GetParameters(HttpContext context, IServiceProvider serviceProvider, string scopedPath)
         {
             List<object> arguments = new();
 
@@ -173,8 +181,9 @@ namespace BlackDigital.Mvc.Rest
 
                 if (parameter.Body != null)
                 {
+                    context.Request.EnableBuffering();
+                    var rawRequestBody = await (new StreamReader(context.Request.Body)).ReadToEndAsync();
                     context.Request.Body.Position = 0;
-                    var rawRequestBody = new StreamReader(context.Request.Body).ReadToEnd();
                     arguments.Add(JsonCast.To(rawRequestBody, parameter.Type));
                 }
             }
