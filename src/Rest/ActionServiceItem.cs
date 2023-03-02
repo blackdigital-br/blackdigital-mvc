@@ -1,16 +1,9 @@
-﻿using BlackDigital.Rest;
+﻿using System.Reflection;
+using BlackDigital.Rest;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Primitives;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Extensions.Primitives;
+
 
 namespace BlackDigital.Mvc.Rest
 {
@@ -102,25 +95,32 @@ namespace BlackDigital.Mvc.Rest
             if (serviceInstance is null)
                 throw new NullReferenceException(nameof(serviceInstance));
 
-            var resultMethod = Method.Invoke(serviceInstance, await GetParameters(context, serviceProvider, scopedPath));
-
-            if (Method.ReturnType != null)
+            try
             {
-                if (resultMethod is Task)
+                var resultMethod = Method.Invoke(serviceInstance, await GetParameters(context, serviceProvider, scopedPath));
+
+                if (Method.ReturnType != null)
                 {
-                    await (Task)resultMethod;
+                    if (resultMethod is Task)
+                    {
+                            await (Task)resultMethod;
 
-                    if (Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
-                        resultMethod = resultMethod.GetType().GetProperty("Result")?.GetValue(resultMethod);
-                    else
-                        resultMethod = null;
+                            if (Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+                                resultMethod = resultMethod.GetType().GetProperty("Result")?.GetValue(resultMethod);
+                            else
+                                resultMethod = null;
+                    }
+
+                    CreateResponse(context, resultMethod);
                 }
-
-                CreateResponse(context, resultMethod);
+                else
+                {
+                    context.Response.StatusCode = 200;
+                }
             }
-            else
-            {
-                context.Response.StatusCode = 200;
+            catch (BusinessException businessException)
+            { 
+                CreateBusinessExceptionResponse(context, businessException);
             }
         }
 
@@ -202,6 +202,13 @@ namespace BlackDigital.Mvc.Rest
             {
                 context.Response.StatusCode = 404;
             }
+        }
+
+        private static void CreateBusinessExceptionResponse(HttpContext context, BusinessException exception)
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.WriteAsync(JsonCast.ToJson(exception.Message));
+            context.Response.StatusCode = exception.Code;
         }
     }
 }
