@@ -50,7 +50,11 @@ namespace BlackDigital.Mvc.Rest
                                                                                 ?? string.Empty));
 
             if (service != null)
-                scopedPath = scopedPath[service.Attribute.BaseRoute.Length..];
+            {
+                int length = service.Attribute.BaseRoute.Length;
+                length++;
+                scopedPath = scopedPath[length..];
+            }
 
             return service;
         }

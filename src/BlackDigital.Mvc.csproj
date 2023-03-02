@@ -11,7 +11,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-    <PackageReference Include="BlackDigital" Version="23.2.1" />
-  </ItemGroup>
+	  <ProjectReference Include="..\..\blackdigital-net\src\BlackDigital.csproj" />
+	</ItemGroup>
 
 </Project>

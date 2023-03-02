@@ -1,16 +1,9 @@
-﻿using BlackDigital.Rest;
+﻿using System.Reflection;
+using BlackDigital.Rest;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Primitives;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web;
+using Microsoft.Extensions.Primitives;
+
 
 namespace BlackDigital.Mvc.Rest
 {
@@ -37,12 +30,21 @@ namespace BlackDigital.Mvc.Rest
                 throw new ArgumentNullException(nameof(context));
 
             return ValidateMethod(context)
+                    && ValidateAuthorization(context)
                     && ValidateRoute(scopedPath);
         }
 
         private bool ValidateMethod(HttpContext context)
         {
             return context.Request.Method.ToUpper() == Enum.GetName(ActionAttribute.Method)?.ToUpper();
+        }
+
+        private bool ValidateAuthorization(HttpContext context)
+        {
+            if (ActionAttribute.Authorize)
+                return context.User.Identity?.IsAuthenticated ?? false;
+
+            return true;
         }
 
         private bool ValidateRoute(string scopedPath)
@@ -57,18 +59,26 @@ namespace BlackDigital.Mvc.Rest
             var routeParameters = Parameters.Where(p => p.Route != null)
                                             .ToArray();
 
-            if (routeParameters.Length != pathItens.Length)
+            var actionRoutes = ActionAttribute.Route?.Split('/') ?? Array.Empty<string>();
+
+            if (actionRoutes.Length != pathItens.Length)
                 return false;
 
-            for (int i = 0; i < pathItens.Length; i++)
+            foreach (var actionRoute in actionRoutes)
             {
-                var value = pathItens[i];
-                var routeParameter = routeParameters[i];
+                var currentPath = pathItens[actionRoutes.ToList().IndexOf(actionRoute)];
 
-                if (!Regex.IsMatch(routeParameter?.Route?.Name ?? string.Empty, @"{(.+?)}")
-                    && value != routeParameter?.Route?.Name)
+                if (Regex.IsMatch(actionRoute, @"{(.+?)}"))
                 {
-                    return false;
+                    var routeParameter = routeParameters.FirstOrDefault(p => p.Route?.Name == actionRoute);
+
+                    if (routeParameter is null)
+                        return false;
+                }
+                else
+                {
+                    if (actionRoute != currentPath)
+                        return false;
                 }
             }
 
@@ -85,29 +95,36 @@ namespace BlackDigital.Mvc.Rest
             if (serviceInstance is null)
                 throw new NullReferenceException(nameof(serviceInstance));
 
-            var resultMethod = Method.Invoke(serviceInstance, GetParameters(context, serviceProvider, scopedPath));
-
-            if (Method.ReturnType != null)
+            try
             {
-                if (resultMethod is Task)
+                var resultMethod = Method.Invoke(serviceInstance, await GetParameters(context, serviceProvider, scopedPath));
+
+                if (Method.ReturnType != null)
                 {
-                    await (Task)resultMethod;
+                    if (resultMethod is Task)
+                    {
+                            await (Task)resultMethod;
 
-                    if (Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
-                        resultMethod = resultMethod.GetType().GetProperty("Result")?.GetValue(resultMethod);
-                    else
-                        resultMethod = null;
+                            if (Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+                                resultMethod = resultMethod.GetType().GetProperty("Result")?.GetValue(resultMethod);
+                            else
+                                resultMethod = null;
+                    }
+
+                    CreateResponse(context, resultMethod);
                 }
-
-                CreateResponse(context, resultMethod);
+                else
+                {
+                    context.Response.StatusCode = 200;
+                }
             }
-            else
-            {
-                context.Response.StatusCode = 200;
+            catch (BusinessException businessException)
+            { 
+                CreateBusinessExceptionResponse(context, businessException);
             }
         }
 
-        private object?[] GetParameters(HttpContext context, IServiceProvider serviceProvider, string scopedPath)
+        private async Task<object?[]> GetParameters(HttpContext context, IServiceProvider serviceProvider, string scopedPath)
         {
             List<object> arguments = new();
 
@@ -164,8 +181,9 @@ namespace BlackDigital.Mvc.Rest
 
                 if (parameter.Body != null)
                 {
+                    context.Request.EnableBuffering();
+                    var rawRequestBody = await (new StreamReader(context.Request.Body)).ReadToEndAsync();
                     context.Request.Body.Position = 0;
-                    var rawRequestBody = new StreamReader(context.Request.Body).ReadToEnd();
                     arguments.Add(JsonCast.To(rawRequestBody, parameter.Type));
                 }
             }
@@ -184,6 +202,13 @@ namespace BlackDigital.Mvc.Rest
             {
                 context.Response.StatusCode = 404;
             }
+        }
+
+        private static void CreateBusinessExceptionResponse(HttpContext context, BusinessException exception)
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.WriteAsync(JsonCast.ToJson(exception.Message));
+            context.Response.StatusCode = exception.Code;
         }
     }
 }
