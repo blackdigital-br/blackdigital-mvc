@@ -16,9 +16,9 @@ namespace BlackDigital.Mvc.Rest
             return services;
         }
 
-        public static IApplicationBuilder UseRestService(this IApplicationBuilder applicationBuilder)
+        /*public static IApplicationBuilder UseRestService(this IApplicationBuilder applicationBuilder)
         {
             return applicationBuilder.UseMiddleware<RestMiddleware>();
-        }
+        }*/
     }
 }

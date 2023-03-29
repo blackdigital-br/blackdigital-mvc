@@ -1,10 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Rest\ActionServiceItem.cs.old" />
+    <None Remove="Rest\ParameterActionItem.cs.old" />
+    <None Remove="Rest\RestMiddleware.cs.old" />
+    <None Remove="Rest\RestServiceItem.cs.old" />
+    <None Remove="Rest\RestServiceList.cs.old" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Rest\ActionServiceItem.cs.old" />
+    <Compile Include="Rest\ParameterActionItem.cs.old" />
+    <Compile Include="Rest\RestMiddleware.cs.old" />
+    <Compile Include="Rest\RestServiceItem.cs.old" />
+    <Compile Include="Rest\RestServiceList.cs.old" />
+  </ItemGroup>
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
