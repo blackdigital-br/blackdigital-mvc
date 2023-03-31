@@ -9,6 +9,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddRestService(restService =>
     restService.AddService<IUser, UserImplemention>());
 
+builder.Services.UseRestService();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -24,12 +26,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+
 app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 
-app.UseRestService();
+//app.UseRestService();
 
 app.Run();

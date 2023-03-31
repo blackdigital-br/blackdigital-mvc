@@ -2,11 +2,9 @@
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Reflection.Metadata;
 using TypeBuilder = System.Reflection.Emit.TypeBuilder;
 
 namespace BlackDigital.Mvc.Rest
@@ -32,17 +30,19 @@ namespace BlackDigital.Mvc.Rest
             return this;
         }
 
-        public void Build()
+        public List<Type> Build()
         {
             AssemblyName assemblyName = new(ASSEMBLYNAME);
             AssemblyBuilder assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName.Name);
+            List<Type> controllers = new();
 
             foreach (var interfaceType in Services)
             {
-                var controllerType = BuildType(moduleBuilder, interfaceType);
-                //ServiceCollection.AddScoped(controllerType);
+                controllers.Add(BuildType(moduleBuilder, interfaceType));
             }
+
+            return controllers;
         }
 
         private static Type BuildType(ModuleBuilder moduleBuilder, Type interfaceType)
@@ -100,7 +100,7 @@ namespace BlackDigital.Mvc.Rest
                     methodBuilder.AddCustomAttributeToMethod<AuthorizeAttribute>();
 
 
-                foreach (var parameter in methodBuilder.GetParameters())
+                foreach (var parameter in method.GetParameters())
                 {
                     var parameterBuilder = methodBuilder.DefineParameter(
                         parameter.Position + 1,
@@ -129,12 +129,24 @@ namespace BlackDigital.Mvc.Rest
 
                 var header = parameterInterface.GetCustomAttribute<HeaderAttribute>();
                 if (header != null)
-                    parameterBuilder.AddCustomAttributeToParameter<FromHeaderAttribute>(header.Name ?? parameterInterface.Name);
+                    parameterBuilder.AddCustomAttributeToParameter<FromHeaderAttribute>(null,
+                                                                                       null,
+                                                                                       new PropertyInfo[] { typeof(FromHeaderAttribute).GetProperty("Name") },
+                                                                                       new object[] { header.Name ?? parameterInterface.Name });
 
 
                 var query = parameterInterface.GetCustomAttribute<QueryAttribute>();
                 if (query != null)
-                    parameterBuilder.AddCustomAttributeToParameter<FromQueryAttribute>(query.Name ?? parameterInterface.Name);
+                    parameterBuilder.AddCustomAttributeToParameter<FromQueryAttribute>(null,
+                                                                                       null,
+                                                                                       new PropertyInfo[] { typeof(FromQueryAttribute).GetProperty("Name") },
+                                                                                       new object[] { query.Name ?? parameterInterface.Name });
+
+                if (body == null && header == null && query == null)
+                    parameterBuilder.AddCustomAttributeToParameter<FromQueryAttribute>(null, 
+                                                                                       null,
+                                                                                       new PropertyInfo[] { typeof(FromQueryAttribute).GetProperty("Name")  },
+                                                                                       new object[] { parameterInterface.Name });
             }
         }
 
@@ -183,7 +195,7 @@ namespace BlackDigital.Mvc.Rest
             if (method.ReturnType != typeof(void))
                 CreateMethodReturnWithValue(method, il, baseType, dictParameters);
             else
-                CreateMethodReturnWithoutValue(method, il, baseType, dictParameters);
+                CreateMethodReturnWithValue(method, il, baseType, dictParameters);
 
             il.Emit(OpCodes.Ret);
             typeBuilder.DefineMethodOverride(methodBuilder, method);

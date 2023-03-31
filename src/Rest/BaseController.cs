@@ -28,7 +28,10 @@ namespace BlackDigital.Mvc.Rest
             var response = methodInfo.Invoke(EntityController, arguments.Values.ToArray());
 
             if (response is Task<T> task)
-                return await task;
+            {
+                var result = await task;
+                return result;
+            }
 
             return response is T ? (T)response : default;
         }
