@@ -1,18 +1,27 @@
-﻿using BlackDigital.Rest;
+﻿using BlackDigital.Mvc.Example.Services;
+using BlackDigital.Mvc.Rest;
+using BlackDigital.Rest;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BlackDigital.Mvc.Example.Controllers
 {
     [ApiController]
     [Microsoft.AspNetCore.Mvc.Route("[controller]")]
-    public class TestController : ControllerBase
+    public class TestController : BaseController<IUser>
     {
-        [HttpPost]
-        public ActionResult Get(string name,
-                                string email,
-                                string password)
+        public TestController(IUser entityController) : base(entityController)
         {
-            return Ok("Test1");
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> Get()
+        {
+            return await ExecuteActionAsync("SaveUserAsync", new Dictionary<string, object>
+            {
+                { "name", "name" },
+                { "email", "email" },
+                { "password", "password" }
+            });
         }
     }
 }

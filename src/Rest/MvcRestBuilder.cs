@@ -51,7 +51,7 @@ namespace BlackDigital.Mvc.Rest
             var baseType = baseControllerType.MakeGenericType(interfaceType);
 
             TypeBuilder typeBuilder = moduleBuilder.DefineType($"{ASSEMBLYNAME}.{interfaceType.Name}Controller", TypeAttributes.Public, baseType);
-            typeBuilder.AddInterfaceImplementation(interfaceType);
+            //typeBuilder.AddInterfaceImplementation(interfaceType);
             CreateTypeAttributtes(typeBuilder, interfaceType);
             CreateConstructor(typeBuilder, interfaceType, baseType);
 
@@ -172,7 +172,7 @@ namespace BlackDigital.Mvc.Rest
         {
             MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name,
                                                                        MethodAttributes.Public | MethodAttributes.Virtual,
-                                                                       method.ReturnType,
+                                                                       typeof(Task<ActionResult>),
                                                                        method.GetParameters().Select(x => x.ParameterType)
                                                                        .ToArray());
 
@@ -192,13 +192,15 @@ namespace BlackDigital.Mvc.Rest
                 CreateMethodParametersAdd(parameter, il, dictParameters, listParamatersType);
             }
 
-            if (method.ReturnType != typeof(void))
+            CreateMethodReturnWithValue(method, il, baseType, dictParameters);
+
+            /*if (method.ReturnType != typeof(void))
                 CreateMethodReturnWithValue(method, il, baseType, dictParameters);
             else
-                CreateMethodReturnWithValue(method, il, baseType, dictParameters);
+                CreateMethodReturnWithValue(method, il, baseType, dictParameters);*/
 
             il.Emit(OpCodes.Ret);
-            typeBuilder.DefineMethodOverride(methodBuilder, method);
+            //typeBuilder.DefineMethodOverride(methodBuilder, method);
         }
 
         private static void CreateMethodParametersAdd(ParameterInfo parameter,
@@ -227,22 +229,24 @@ namespace BlackDigital.Mvc.Rest
         {
             var executeRequestMethod = baseType.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                                                .Single(x => x.Name == "ExecuteActionAsync"
-                                                        && x.GetGenericArguments().Length == 1
+                                                        && x.GetGenericArguments().Length == 0
                                                         && x.GetParameters().Length == 2);
 
             il.Emit(OpCodes.Nop); //TODO: remove??
 
-            var returnType = method.ReturnType;
+            //var returnType = typeof(IActionResult); //method.ReturnType;
 
-            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                returnType = returnType.GetGenericArguments()[0];
+            /*if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                returnType = returnType.GetGenericArguments()[0];*/
 
-            var returnVar = il.DeclareLocal(returnType);
+            //var returnVar = il.DeclareLocal(typeof(Task<ActionResult>));
+            var returnVar = il.DeclareLocal(typeof(ActionResult));
 
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldstr, method.Name);
             il.Emit(OpCodes.Ldloc, dictParameters);
-            il.Emit(OpCodes.Call, executeRequestMethod.MakeGenericMethod(returnType));
+            //il.Emit(OpCodes.Call, executeRequestMethod.MakeGenericMethod(returnType));
+            il.Emit(OpCodes.Call, executeRequestMethod);
             il.Emit(OpCodes.Stloc, returnVar);
 
             //il.Emit(OpCodes.Br_S);

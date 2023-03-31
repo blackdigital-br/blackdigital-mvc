@@ -9,7 +9,7 @@ namespace BlackDigital.Mvc.Example.Services
         Task<string> GetUserAsync(string name);
 
         [Action(method: RestMethod.Post, authorize: false)]
-        Task<User> SaveUserAsync(string name,
+        Task<int> SaveUserAsync(string name,
                                  string email,
                                  string password);
     }   

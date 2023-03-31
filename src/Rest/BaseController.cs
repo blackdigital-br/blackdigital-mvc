@@ -5,18 +5,21 @@ namespace BlackDigital.Mvc.Rest
 {
     public abstract class BaseController<IEntityController> : Controller
     {
-        public BaseController(IEntityController useCase)
+        public BaseController(IEntityController entityController)
         {
-            if (useCase == null)
-                throw new ArgumentNullException(nameof(useCase));
+            if (entityController == null)
+                throw new ArgumentNullException(nameof(entityController));
 
-            EntityController = useCase;
+            EntityController = entityController;
         }
 
         protected readonly IEntityController EntityController;
 
-        protected async Task<T?> ExecuteActionAsync<T>(string name, Dictionary<string, object> arguments)
+        protected async Task<ActionResult> ExecuteActionAsync(string name, Dictionary<string, object> arguments)
         {
+            if (EntityController == null)
+                throw new ArgumentNullException(nameof(EntityController));
+
             var methodInfo = EntityController.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance)
                                              .Where(x => x.Name == name && x.GetParameters().Length == arguments.Count)
                                              .SingleOrDefault();
@@ -24,16 +27,35 @@ namespace BlackDigital.Mvc.Rest
             if (methodInfo == null)
                 throw new MethodAccessException($"{name}: {arguments.Count}");
 
-            
-            var response = methodInfo.Invoke(EntityController, arguments.Values.ToArray());
-
-            if (response is Task<T> task)
+            try
             {
-                var result = await task;
-                return result;
-            }
+                var response = methodInfo.Invoke(EntityController, arguments.Values.ToArray());
 
-            return response is T ? (T)response : default;
+                if (methodInfo.ReturnType != typeof(void))
+                {
+                    if (response is Task task)
+                    {
+                        await task;
+
+                        if (methodInfo.ReturnType.IsGenericType)
+                        {
+                            var result = methodInfo.ReturnType.GetProperty("Result")?.GetValue(task);
+                            return Ok(result);
+                        }
+                    }
+
+                    return Ok(response);
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                if (ex.InnerException is BusinessException businessException)
+                    return StatusCode(businessException.Code, businessException.Message);
+
+                throw ex.InnerException ?? ex;
+            }
         }
     }
 }
