@@ -49,6 +49,10 @@ namespace BlackDigital.Mvc.Rest
 
                 return Ok();
             }
+            catch (BusinessException businessException)
+            {
+                return StatusCode(businessException.Code, businessException.Message);
+            }
             catch (Exception ex)
             {
                 if (ex.InnerException is BusinessException businessException)

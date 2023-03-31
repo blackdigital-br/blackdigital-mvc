@@ -9,7 +9,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddRestService(restService =>
     restService.AddService<IUser, UserImplemention>());
 
-builder.Services.UseRestService();
+builder.Services.AddRestControllers();
 
 var app = builder.Build();
 

@@ -13,8 +13,8 @@ namespace BlackDigital.Mvc.Example.Controllers
         {
         }
 
-        [HttpPost]
-        public async Task<ActionResult> Get()
+        [HttpPost("{id}")]
+        public async Task<ActionResult> Get([FromRoute] int id)
         {
             return await ExecuteActionAsync("SaveUserAsync", new Dictionary<string, object>
             {

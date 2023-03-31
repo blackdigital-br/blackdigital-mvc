@@ -4,7 +4,7 @@
     {
         public Task<string> GetUserAsync(string name)
         {
-            BusinessException.ThrowNotFound();
+            //BusinessException.ThrowNotFound();
             return Task.FromResult("User Name");
         }
 

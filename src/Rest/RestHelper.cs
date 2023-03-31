@@ -5,8 +5,7 @@ namespace BlackDigital.Mvc.Rest
 {
     public static class RestHelper
     {
-
-        private static MvcRestBuilder MvcRestBuilder;
+        private static MvcRestBuilder? MvcRestBuilder;
 
         public static IServiceCollection AddRestService(this IServiceCollection services,
                                                Func<MvcRestBuilder, MvcRestBuilder> restService)
@@ -17,12 +16,10 @@ namespace BlackDigital.Mvc.Rest
             return services;
         }
 
-        public static IServiceCollection UseRestService(this IServiceCollection services)
+        public static IServiceCollection AddRestControllers(this IServiceCollection services)
         {
             if (MvcRestBuilder == null)
-            {
                 throw new Exception("You must call AddRestService before UseRestService");
-            }
 
             var controllers = MvcRestBuilder.Build();
 
@@ -31,6 +28,8 @@ namespace BlackDigital.Mvc.Rest
                 services.AddControllers()
                         .AddApplicationPart(controllers.First().Assembly);
             }
+
+            MvcRestBuilder = null;
 
             return services;
         }

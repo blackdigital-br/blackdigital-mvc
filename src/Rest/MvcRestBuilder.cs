@@ -123,6 +123,13 @@ namespace BlackDigital.Mvc.Rest
 
             if (parameterInterface != null)
             {
+                var route = parameterInterface.GetCustomAttribute<BlackDigital.Rest.RouteAttribute>();
+                if (route != null)
+                    parameterBuilder.AddCustomAttributeToParameter<FromRouteAttribute>(null,
+                                                                                       null,
+                                                                                       new PropertyInfo[] { typeof(FromRouteAttribute).GetProperty("Name") },
+                                                                                       new object[] { route.Name ?? parameterInterface.Name });
+
                 var body = parameterInterface.GetCustomAttribute<BodyAttribute>();
                 if (body != null)
                     parameterBuilder.AddCustomAttributeToParameter<FromBodyAttribute>();
@@ -142,10 +149,10 @@ namespace BlackDigital.Mvc.Rest
                                                                                        new PropertyInfo[] { typeof(FromQueryAttribute).GetProperty("Name") },
                                                                                        new object[] { query.Name ?? parameterInterface.Name });
 
-                if (body == null && header == null && query == null)
-                    parameterBuilder.AddCustomAttributeToParameter<FromQueryAttribute>(null, 
+                if (route == null && body == null && header == null && query == null)
+                    parameterBuilder.AddCustomAttributeToParameter<FromQueryAttribute>(null,
                                                                                        null,
-                                                                                       new PropertyInfo[] { typeof(FromQueryAttribute).GetProperty("Name")  },
+                                                                                       new PropertyInfo[] { typeof(FromQueryAttribute).GetProperty("Name") },
                                                                                        new object[] { parameterInterface.Name });
             }
         }
@@ -194,13 +201,7 @@ namespace BlackDigital.Mvc.Rest
 
             CreateMethodReturnWithValue(method, il, baseType, dictParameters);
 
-            /*if (method.ReturnType != typeof(void))
-                CreateMethodReturnWithValue(method, il, baseType, dictParameters);
-            else
-                CreateMethodReturnWithValue(method, il, baseType, dictParameters);*/
-
             il.Emit(OpCodes.Ret);
-            //typeBuilder.DefineMethodOverride(methodBuilder, method);
         }
 
         private static void CreateMethodParametersAdd(ParameterInfo parameter,
@@ -234,49 +235,13 @@ namespace BlackDigital.Mvc.Rest
 
             il.Emit(OpCodes.Nop); //TODO: remove??
 
-            //var returnType = typeof(IActionResult); //method.ReturnType;
-
-            /*if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                returnType = returnType.GetGenericArguments()[0];*/
-
-            //var returnVar = il.DeclareLocal(typeof(Task<ActionResult>));
             var returnVar = il.DeclareLocal(typeof(ActionResult));
 
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldstr, method.Name);
             il.Emit(OpCodes.Ldloc, dictParameters);
-            //il.Emit(OpCodes.Call, executeRequestMethod.MakeGenericMethod(returnType));
             il.Emit(OpCodes.Call, executeRequestMethod);
             il.Emit(OpCodes.Stloc, returnVar);
-
-            //il.Emit(OpCodes.Br_S);
-            il.Emit(OpCodes.Ldloc, returnVar);
-        }
-
-        private static void CreateMethodReturnWithoutValue(MethodInfo method,
-                                                        ILGenerator il,
-                                                        Type baseType,
-                                                        LocalBuilder dictParameters)
-        {
-            var executeRequestMethod = baseType.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                                               .Single(x => x.Name == "ExecuteActionAsync"
-                                                        && x.GetGenericArguments().Length == 1
-                                                        && x.GetParameters().Length == 2);
-
-            il.Emit(OpCodes.Nop); //TODO: remove??
-
-            var returnType = method.ReturnType;
-
-            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                returnType = returnType.GetGenericArguments()[0];
-
-            var returnVar = il.DeclareLocal(returnType);
-
-            il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Ldstr, method.Name);
-            il.Emit(OpCodes.Ldloc, dictParameters);
-            il.Emit(OpCodes.Call, executeRequestMethod.MakeGenericMethod(returnType));
-            //il.Emit(OpCodes.Stloc, returnVar);
 
             //il.Emit(OpCodes.Br_S);
             il.Emit(OpCodes.Ldloc, returnVar);

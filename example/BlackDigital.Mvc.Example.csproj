@@ -7,7 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\blackdigital-net\src\BlackDigital.csproj" />
+    <PackageReference Include="BlackDigital" Version="23.3.31" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\src\BlackDigital.Mvc.csproj" />
   </ItemGroup>
 
