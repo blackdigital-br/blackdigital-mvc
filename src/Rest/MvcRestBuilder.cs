@@ -11,15 +11,23 @@ namespace BlackDigital.Mvc.Rest
 {
     public class MvcRestBuilder
     {
+        #region "Constructor"
+
         public MvcRestBuilder(IServiceCollection serviceCollection)
         {
             Services = new();
             ServiceCollection = serviceCollection;
         }
 
+        #endregion "Constructor"
+
+        #region "Properties"
+
         protected internal List<Type> Services { get; private set; }
         protected IServiceCollection ServiceCollection { get; private set; }
         private const string ASSEMBLYNAME = "BlackDigital.Mvc.Controllers";
+
+        #endregion "Properties"
 
         public MvcRestBuilder AddService<TService, TImplementation>()
             where TService : class
@@ -30,19 +38,14 @@ namespace BlackDigital.Mvc.Rest
             return this;
         }
 
-        public List<Type> Build()
+        public IEnumerable<Type> Build()
         {
             AssemblyName assemblyName = new(ASSEMBLYNAME);
             AssemblyBuilder assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName.Name);
-            List<Type> controllers = new();
 
             foreach (var interfaceType in Services)
-            {
-                controllers.Add(BuildType(moduleBuilder, interfaceType));
-            }
-
-            return controllers;
+                yield return BuildType(moduleBuilder, interfaceType);
         }
 
         private static Type BuildType(ModuleBuilder moduleBuilder, Type interfaceType)
@@ -51,7 +54,6 @@ namespace BlackDigital.Mvc.Rest
             var baseType = baseControllerType.MakeGenericType(interfaceType);
 
             TypeBuilder typeBuilder = moduleBuilder.DefineType($"{ASSEMBLYNAME}.{interfaceType.Name}Controller", TypeAttributes.Public, baseType);
-            //typeBuilder.AddInterfaceImplementation(interfaceType);
             CreateTypeAttributtes(typeBuilder, interfaceType);
             CreateConstructor(typeBuilder, interfaceType, baseType);
 
@@ -159,6 +161,8 @@ namespace BlackDigital.Mvc.Rest
 
         #endregion
 
+        #region "Create Methods"
+
         private static void CreateConstructor(TypeBuilder typeBuilder, Type interfaceType, Type baseType)
         {
             ConstructorBuilder constructor = typeBuilder.DefineConstructor(MethodAttributes.Public,
@@ -246,5 +250,7 @@ namespace BlackDigital.Mvc.Rest
             //il.Emit(OpCodes.Br_S);
             il.Emit(OpCodes.Ldloc, returnVar);
         }
+
+        #endregion "Create Methods"
     }
 }

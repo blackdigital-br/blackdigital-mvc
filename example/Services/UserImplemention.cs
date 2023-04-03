@@ -1,4 +1,7 @@
-﻿namespace BlackDigital.Mvc.Example.Services
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace BlackDigital.Mvc.Example.Services
 {
     public class UserImplemention : IUser
     {
@@ -10,6 +13,8 @@
 
         public Task<int> SaveUserAsync(string name, string email, string password)
         {
+            
+
             return Task.FromResult(12);
             /*return Task.FromResult(new User
             {

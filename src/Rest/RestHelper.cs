@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using BlackDigital.Mvc.Binder;
+using BlackDigital.Mvc.Constraint;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlackDigital.Mvc.Rest
@@ -25,13 +29,27 @@ namespace BlackDigital.Mvc.Rest
 
             if (controllers.Any())
             {
-                services.AddControllers()
-                        .AddApplicationPart(controllers.First().Assembly);
+                services.AddControllers(options => {
+                    options.AddDefaultOptions();
+                })
+                .AddApplicationPart(controllers.First().Assembly);
             }
 
             MvcRestBuilder = null;
 
+            services.Configure<RouteOptions>(options =>
+            {
+                options.ConstraintMap.Add("id", typeof(IdConstraint));
+            });
+
             return services;
+        }
+
+        public static MvcOptions AddDefaultOptions(this MvcOptions options)
+        {
+            options.ModelBinderProviders.Insert(0, new IdModelBinderProvider());
+
+            return options;
         }
     }
 }
