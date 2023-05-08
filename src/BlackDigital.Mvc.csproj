@@ -24,7 +24,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="BlackDigital" Version="23.3.31" />
+	  <PackageReference Include="BlackDigital" Version="23.5.8" />
 	</ItemGroup>
 
 </Project>

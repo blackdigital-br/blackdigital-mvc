@@ -44,8 +44,12 @@ namespace BlackDigital.Mvc.Rest
             AssemblyBuilder assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName.Name);
 
+            Type[] types = new Type[Services.Count];
+
             foreach (var interfaceType in Services)
-                yield return BuildType(moduleBuilder, interfaceType);
+                types[Services.IndexOf(interfaceType)] = BuildType(moduleBuilder, interfaceType);
+
+            return types;
         }
 
         private static Type BuildType(ModuleBuilder moduleBuilder, Type interfaceType)
