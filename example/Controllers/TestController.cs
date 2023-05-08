@@ -1,4 +1,5 @@
-﻿using BlackDigital.Mvc.Example.Services;
+﻿using BlackDigital.Model;
+using BlackDigital.Mvc.Example.Services;
 using BlackDigital.Mvc.Rest;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Mvc;
