@@ -1,4 +1,5 @@
 ﻿
+using BlackDigital.Model;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace BlackDigital.Mvc.Binder
