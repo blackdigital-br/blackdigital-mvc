@@ -1,24 +1,55 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using BlackDigital.Mvc.Binder;
+using BlackDigital.Mvc.Constraint;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlackDigital.Mvc.Rest
 {
     public static class RestHelper
     {
+        private static MvcRestBuilder? MvcRestBuilder;
+
         public static IServiceCollection AddRestService(this IServiceCollection services,
                                                Func<MvcRestBuilder, MvcRestBuilder> restService)
         {
-            MvcRestBuilder mvcRestBuilder = new(services);
-            mvcRestBuilder = restService(mvcRestBuilder);
+            MvcRestBuilder ??= new(services);
+            MvcRestBuilder = restService(MvcRestBuilder);
 
-            RestServiceList restServiceList = new(mvcRestBuilder.Services);
-            services.AddSingleton(restServiceList);
             return services;
         }
 
-        public static IApplicationBuilder UseRestService(this IApplicationBuilder applicationBuilder)
+        public static IServiceCollection AddRestControllers(this IServiceCollection services)
         {
-            return applicationBuilder.UseMiddleware<RestMiddleware>();
+            if (MvcRestBuilder == null)
+                throw new Exception("You must call AddRestService before UseRestService");
+
+            var controllers = MvcRestBuilder.Build();
+
+            if (controllers.Any())
+            {
+                services.AddControllers(options => {
+                    options.AddDefaultOptions();
+                })
+                .AddApplicationPart(controllers.First().Assembly);
+            }
+
+            MvcRestBuilder = null;
+
+            services.Configure<RouteOptions>(options =>
+            {
+                options.ConstraintMap.Add("id", typeof(IdConstraint));
+            });
+
+            return services;
+        }
+
+        public static MvcOptions AddDefaultOptions(this MvcOptions options)
+        {
+            options.ModelBinderProviders.Insert(0, new IdModelBinderProvider());
+
+            return options;
         }
     }
 }

@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc", "src\Bla
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc.Example", "example\BlackDigital.Mvc.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlackDigital.Mvc.Test", "test\BlackDigital.Mvc.Test.csproj", "{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc.Test", "test\BlackDigital.Mvc.Test.csproj", "{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

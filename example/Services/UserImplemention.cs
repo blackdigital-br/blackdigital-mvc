@@ -1,15 +1,26 @@
-﻿namespace BlackDigital.Mvc.Example.Services
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace BlackDigital.Mvc.Example.Services
 {
     public class UserImplemention : IUser
     {
-        public Task<string> GetUserAsync()
+        public Task<string> GetUserAsync(string name)
         {
+            //BusinessException.ThrowNotFound();
             return Task.FromResult("User Name");
         }
 
-        public Task<bool> SaveUserAsync(string name, string email, string password)
+        public Task<int> SaveUserAsync(string name, string email, string password)
         {
-            return Task.FromResult(true);
+            
+
+            return Task.FromResult(12);
+            /*return Task.FromResult(new User
+            {
+                Email = "a@a.com",
+                Name = "User Name"
+            });*/
         }
     }
 }

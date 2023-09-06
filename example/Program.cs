@@ -1,3 +1,5 @@
+using BlackDigital.Mvc.Binder;
+using BlackDigital.Mvc.Constraint;
 using BlackDigital.Mvc.Example.Services;
 using BlackDigital.Mvc.Rest;
 
@@ -8,6 +10,10 @@ builder.Services.AddRazorPages();
 
 builder.Services.AddRestService(restService =>
     restService.AddService<IUser, UserImplemention>());
+
+builder.Services.AddRestControllers();
+
+
 
 var app = builder.Build();
 
@@ -24,12 +30,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+
 app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 
-app.UseRestService();
+//app.UseRestService();
 
 app.Run();

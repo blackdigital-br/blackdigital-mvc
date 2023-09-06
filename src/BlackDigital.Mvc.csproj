@@ -1,9 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Logo128.png</PackageIcon>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -11,7 +13,18 @@
 	</ItemGroup>
 
 	<ItemGroup>
-    <PackageReference Include="BlackDigital" Version="23.2.1" />
-  </ItemGroup>
+	  <None Include="..\doc\images\Logo128.png">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	  <None Include="..\README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="BlackDigital" Version="23.5.8" />
+	</ItemGroup>
 
 </Project>
