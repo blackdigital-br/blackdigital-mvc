@@ -33,8 +33,11 @@ app.UseRouting();
 
 app.UseAuthorization();
 
+
 app.MapRazorPages();
 app.MapControllers();
+app.UseMiddleware<RestRouterMiddleware>();
+
 app.MapFallbackToFile("index.html");
 
 //app.UseRestService();

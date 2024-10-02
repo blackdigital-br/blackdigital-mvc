@@ -15,6 +15,7 @@ namespace BlackDigital.Mvc.Rest
 
         public MvcRestBuilder(IServiceCollection serviceCollection)
         {
+            Routes = new();
             Services = new();
             ServiceCollection = serviceCollection;
         }
@@ -23,7 +24,9 @@ namespace BlackDigital.Mvc.Rest
 
         #region "Properties"
 
-        protected internal List<Type> Services { get; private set; }
+        protected static internal List<Type> Services { get; private set; }
+        public static List<RouteItem> Routes { get; set; }
+
         protected IServiceCollection ServiceCollection { get; private set; }
         private const string ASSEMBLYNAME = "BlackDigital.Mvc.Controllers";
 
@@ -35,8 +38,60 @@ namespace BlackDigital.Mvc.Rest
         {
             ServiceCollection.AddScoped<TService, TImplementation>();
             Services.Add(typeof(TService));
+
+            var type = typeof(TService);
+            var methods = type.GetMethods();
+            var service = type.GetCustomAttribute<ServiceAttribute>();
+
+            if (service != null)
+            {
+                foreach (var method in methods)
+                {
+                    var action = method.GetCustomAttribute<ActionAttribute>();
+
+                    if (action == null)
+                        continue;
+
+                    var parameters = method.GetParameters();
+                    var route = string.Join("/", service.BaseRoute, action.Route);
+                    var routeSplit = route.Split('/');
+    
+                    var routeItem = new RouteItem()
+                    {
+                        HttpMethod = action.Method.ToString(),
+                        Authorize = action.Authorize,
+                        DomainType = type,
+                        Method = method,
+                        Path = routeSplit.Select((p, i) => new PathRouteItem()
+                        {
+                            Name = RemoveBrackets(p),
+                            TypePath = (
+                                            (p.StartsWith('{') && p.EndsWith('}')) 
+                                            ? parameters.FirstOrDefault(x => x.Name.ToLower() == RemoveBrackets(p).ToLower())?.ParameterType
+                                            : null
+                                        )
+                        }).ToArray()
+                    };
+
+                    Routes.Add(routeItem);
+                }
+            }
+
             return this;
         }
+
+        private static string RemoveBrackets(string value)
+        {
+            return value.Replace("{", "").Replace("}", "");
+        }
+
+
+
+
+
+
+
+
 
         public IEnumerable<Type> Build()
         {

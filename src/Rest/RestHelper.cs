@@ -11,6 +11,8 @@ namespace BlackDigital.Mvc.Rest
     {
         private static MvcRestBuilder? MvcRestBuilder;
 
+        private static IDictionary<string, Type> ConstraintMap;
+
         public static IServiceCollection AddRestService(this IServiceCollection services,
                                                Func<MvcRestBuilder, MvcRestBuilder> restService)
         {
@@ -40,6 +42,7 @@ namespace BlackDigital.Mvc.Rest
             services.Configure<RouteOptions>(options =>
             {
                 options.ConstraintMap.Add("id", typeof(IdConstraint));
+                RestHelper.ConstraintMap = options.ConstraintMap;
             });
 
             return services;

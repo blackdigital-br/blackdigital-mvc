@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BlackDigital.Mvc.Example.Controllers
 {
     [ApiController]
-    [Microsoft.AspNetCore.Mvc.Route("[controller]")]
+    [Microsoft.AspNetCore.Mvc.Route("test")]
     public class TestController : BaseController<IUser>
     {
         public TestController(IUser entityController) : base(entityController)
