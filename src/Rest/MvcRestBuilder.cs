@@ -97,6 +97,7 @@ namespace BlackDigital.Mvc.Rest
                     RestMethod.Put => typeof(HttpPutAttribute),
                     RestMethod.Delete => typeof(HttpDeleteAttribute),
                     RestMethod.Get => typeof(HttpGetAttribute),
+                    RestMethod.Patch => typeof(HttpPatchAttribute),
                     _ => typeof(HttpGetAttribute)
                 };
 

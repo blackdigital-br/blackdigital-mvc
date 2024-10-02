@@ -1,11 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>Logo128.png</PackageIcon>
+    <Version>24.10.2.16</Version>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -24,7 +26,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="BlackDigital" Version="23.5.8" />
+	  <PackageReference Include="BlackDigital" Version="24.9.23.14" />
 	</ItemGroup>
 
 </Project>
