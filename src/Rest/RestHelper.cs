@@ -1,3 +1,4 @@
+using BlackDigital.Converters;
 using BlackDigital.Mvc.Binder;
 using BlackDigital.Mvc.Constraint;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,14 @@ namespace BlackDigital.Mvc.Rest
         {
             services.AddControllers(options => {
                 options.AddDefaultOptions();
+            }).AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+
+                options.JsonSerializerOptions.Converters.Add(new IdConverter());
+                options.JsonSerializerOptions.Converters.Add(new TimeSpanConverter());
             });
+
 
             services.Configure<RouteOptions>(options =>
             {
