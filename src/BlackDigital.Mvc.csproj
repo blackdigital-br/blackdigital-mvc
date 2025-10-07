@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>Logo128.png</PackageIcon>
-    <Version>24.10.2.16</Version>
+    <Version>25.10.7.16</Version>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
@@ -26,7 +26,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="BlackDigital" Version="24.9.23.14" />
+	  <PackageReference Include="BlackDigital" Version="25.10.2.12" />
 	</ItemGroup>
 
 </Project>

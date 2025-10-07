@@ -1,4 +1,5 @@
-﻿using BlackDigital.Rest;
+﻿using BlackDigital.Mvc.Example.Models;
+using BlackDigital.Rest;
 
 namespace BlackDigital.Mvc.Example.Services
 {
@@ -9,8 +10,6 @@ namespace BlackDigital.Mvc.Example.Services
         Task<string> GetUserAsync([Route] string name);
 
         [Action(method: RestMethod.Post, authorize: false)]
-        Task<int> SaveUserAsync(string name,
-                                 string email,
-                                 string password);
+        Task<SaveUser> SaveUserAsync([Body] SaveUser user);
     }   
 }

@@ -8,21 +8,21 @@ namespace BlackDigital.Mvc.Example.Controllers
 {
     [ApiController]
     [Microsoft.AspNetCore.Mvc.Route("[controller]")]
-    public class TestController : BaseController<IUser>
+    public class TestController : Controller
     {
-        public TestController(IUser entityController) : base(entityController)
+        public TestController(IUser entityController)
         {
+            _entityController = entityController ?? throw new ArgumentNullException(nameof(entityController));
         }
+
+        private readonly IUser _entityController;
 
         [HttpPost("{id:id}")]
         public async Task<ActionResult> Get([FromRoute] Id id)
         {
-            return await ExecuteActionAsync("SaveUserAsync", new Dictionary<string, object>
-            {
-                { "name", "name" },
-                { "email", "email" },
-                { "password", "password" }
-            });
+            var user = await _entityController.GetUserAsync(id.ToString());
+
+            return Ok(user);
         }
     }
 }

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BlackDigital" Version="24.9.23.14" />
+    <PackageReference Include="BlackDigital" Version="25.10.2.12" />
   </ItemGroup>
 
   <ItemGroup>

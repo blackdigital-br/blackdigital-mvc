@@ -1,6 +1,5 @@
-﻿using BlackDigital.Mvc.Binder;
+using BlackDigital.Mvc.Binder;
 using BlackDigital.Mvc.Constraint;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,33 +8,15 @@ namespace BlackDigital.Mvc.Rest
 {
     public static class RestHelper
     {
-        private static MvcRestBuilder? MvcRestBuilder;
 
-        public static IServiceCollection AddRestService(this IServiceCollection services,
-                                               Func<MvcRestBuilder, MvcRestBuilder> restService)
+        /// <summary>
+        /// Configura as opções padrão do MVC incluindo model binders e constraints
+        /// </summary>
+        public static IServiceCollection AddRestMvcOptions(this IServiceCollection services)
         {
-            MvcRestBuilder ??= new(services);
-            MvcRestBuilder = restService(MvcRestBuilder);
-
-            return services;
-        }
-
-        public static IServiceCollection AddRestControllers(this IServiceCollection services)
-        {
-            if (MvcRestBuilder == null)
-                throw new Exception("You must call AddRestService before UseRestService");
-
-            var controllers = MvcRestBuilder.Build();
-
-            if (controllers.Any())
-            {
-                services.AddControllers(options => {
-                    options.AddDefaultOptions();
-                })
-                .AddApplicationPart(controllers.First().Assembly);
-            }
-
-            MvcRestBuilder = null;
+            services.AddControllers(options => {
+                options.AddDefaultOptions();
+            });
 
             services.Configure<RouteOptions>(options =>
             {
@@ -45,6 +26,11 @@ namespace BlackDigital.Mvc.Rest
             return services;
         }
 
+        /// <summary>
+        /// Adiciona as opções padrão do MVC incluindo model binders personalizados
+        /// </summary>
+        /// <param name="options">As opções do MVC a serem configuradas</param>
+        /// <returns>As opções do MVC configuradas para permitir encadeamento de métodos</returns>
         public static MvcOptions AddDefaultOptions(this MvcOptions options)
         {
             options.ModelBinderProviders.Insert(0, new IdModelBinderProvider());

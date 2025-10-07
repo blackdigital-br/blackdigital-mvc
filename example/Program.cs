@@ -8,10 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 
-builder.Services.AddRestService(restService =>
+// Novo approach com middleware - substitui a geração dinâmica de controllers
+builder.Services.AddRestServices(restService =>
     restService.AddService<IUser, UserImplemention>());
 
-builder.Services.AddRestControllers();
+// Adiciona as configurações padrão do MVC (model binders, constraints)
+builder.Services.AddRestMvcOptions();
 
 
 
@@ -30,13 +32,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// Adiciona o middleware REST que substitui os controllers dinâmicos
+app.UseRestMiddleware();
 
 app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
-
-//app.UseRestService();
 
 app.Run();
