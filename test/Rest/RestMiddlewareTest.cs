@@ -350,7 +350,7 @@ namespace BlackDigital.Mvc.Test.Rest
             var services = new ServiceCollection();
             var middleware = new RestMiddleware(_mockNext.Object, services);
             var getJsonOptionsMethod = typeof(RestMiddleware)
-                .GetMethod("getJsonOptions", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("GetJsonOptions", BindingFlags.NonPublic | BindingFlags.Instance);
 
             // Act
             var result = getJsonOptionsMethod?.Invoke(middleware, new object[] { _mockHttpContext.Object });

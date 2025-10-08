@@ -145,7 +145,7 @@ namespace BlackDigital.Mvc.Rest
                 var actionAttribute = methodInfo.GetCustomAttribute<ActionAttribute>();
                 var serviceAttribute = serviceDescriptor.ServiceType.GetCustomAttribute<ServiceAttribute>();
 
-                var actionKey = actionAttribute?.Id ?? $"{Enum.GetName(actionAttribute.Method).ToUpper()}:{serviceAttribute?.BaseRoute}/{actionAttribute?.Route}";
+                var actionKey = actionAttribute?.KeyIdentifier ?? $"{Enum.GetName(actionAttribute.Method).ToUpper()}:{serviceAttribute?.BaseRoute}/{actionAttribute?.Route}";
 
                 if ((actionAttribute?.Authorize == true) || (serviceAttribute?.Authorize == true))
                 {
