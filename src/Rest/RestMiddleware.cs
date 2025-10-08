@@ -219,10 +219,10 @@ namespace BlackDigital.Mvc.Rest
                 var parameterName = parameter.Name;
 
                 // Verificar atributos de binding
-                var routeAttribute = parameter.GetCustomAttribute(typeof(BlackDigital.Rest.RouteAttribute)) as BlackDigital.Rest.RouteAttribute;
-                var bodyAttribute = parameter.GetCustomAttribute(typeof(BlackDigital.Rest.BodyAttribute)) as BlackDigital.Rest.BodyAttribute;
-                var headerAttribute = parameter.GetCustomAttribute(typeof(BlackDigital.Rest.HeaderAttribute)) as BlackDigital.Rest.HeaderAttribute;
-                var queryAttribute = parameter.GetCustomAttribute(typeof(BlackDigital.Rest.QueryAttribute)) as BlackDigital.Rest.QueryAttribute;
+                var routeAttribute = parameter.GetCustomAttribute(typeof(PathAttribute)) as PathAttribute;
+                var bodyAttribute = parameter.GetCustomAttribute(typeof(BodyAttribute)) as BodyAttribute;
+                var headerAttribute = parameter.GetCustomAttribute(typeof(HeaderAttribute)) as HeaderAttribute;
+                var queryAttribute = parameter.GetCustomAttribute(typeof(QueryAttribute)) as QueryAttribute;
 
                 if (routeAttribute != null)
                 {

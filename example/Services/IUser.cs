@@ -7,7 +7,7 @@ namespace BlackDigital.Mvc.Example.Services
     public interface IUser
     {
         [Action("{name}", method: RestMethod.Get, authorize: false)]
-        Task<string> GetUserAsync([Route] string name);
+        Task<string> GetUserAsync([Path] string name);
 
         [Action(method: RestMethod.Post, authorize: false)]
         Task<SaveUser> SaveUserAsync([Body] SaveUser user);

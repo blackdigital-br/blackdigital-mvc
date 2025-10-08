@@ -1,6 +1,7 @@
 using BlackDigital.Converters;
 using BlackDigital.Mvc.Binder;
 using BlackDigital.Mvc.Constraint;
+using BlackDigital.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,8 @@ namespace BlackDigital.Mvc.Rest
         public static IServiceCollection AddRestMvcOptions(this IServiceCollection services)
         {
             services.AddControllers(options => {
-                options.AddDefaultOptions();
+                options.AddDefaultOptions()
+                       .Filters.Add<ModelStateValidationFilter>();
             }).AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
