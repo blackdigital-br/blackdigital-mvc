@@ -23,6 +23,9 @@ namespace BlackDigital.Mvc.Rest.Trasnforms
         public TransformBuilder AddOutputRule(string key, string version, ITransformRule rule)
             => AddRule(new TransformKey(key, version, TransformDirection.Output), rule);
 
+        public TransformBuilder AddInputAndOutputRule(string key, string version, ITransformRule rule)
+            => AddRule(new TransformKey(key, version, TransformDirection.Both), rule);
+
         public TransformBuilder AddRule(ITransformRule rule, params TransformKey[] keys)
         {
             if (keys.Length == 0)
@@ -53,6 +56,9 @@ namespace BlackDigital.Mvc.Rest.Trasnforms
         public TransformBuilder AddOutputRule(string key, string version, Type ruleType)
             => AddRule(new TransformKey(key, version, TransformDirection.Output), ruleType);
 
+        public TransformBuilder AddInputAndOutputRule(string key, string version, Type ruleType)
+            => AddRule(new TransformKey(key, version, TransformDirection.Both), ruleType);
+
         public TransformBuilder AddRule(Type ruleType, params TransformKey[] keys)
         {
             if (keys.Length == 0)
@@ -78,6 +84,10 @@ namespace BlackDigital.Mvc.Rest.Trasnforms
         public TransformBuilder AddOutputRule<TRule>(string key, string version)
             where TRule : ITransformRule
             => AddRule(new TransformKey(key, version, TransformDirection.Output), typeof(TRule));
+
+        public TransformBuilder AddInputAndOutputRule<TRule>(string key, string version)
+            where TRule : ITransformRule
+            => AddRule(new TransformKey(key, version, TransformDirection.Both), typeof(TRule));
 
         public TransformBuilder AddRule<TRule>(params TransformKey[] keys)
             where TRule : ITransformRule
