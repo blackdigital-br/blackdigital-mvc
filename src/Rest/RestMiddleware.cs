@@ -1,7 +1,6 @@
+using BlackDigital.Mvc.Rest.Trasnforms;
 using BlackDigital.Rest;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using System.Text.Json;
@@ -24,7 +23,7 @@ namespace BlackDigital.Mvc.Rest
             _next = next;
             _services = new Dictionary<string, ServiceDescriptor>();
             _methodCache = new Dictionary<string, MethodInfo>();
-            
+
             BuildServiceRoutes(services);
         }
 
@@ -145,7 +144,9 @@ namespace BlackDigital.Mvc.Rest
                 // Verificar autorização
                 var actionAttribute = methodInfo.GetCustomAttribute<ActionAttribute>();
                 var serviceAttribute = serviceDescriptor.ServiceType.GetCustomAttribute<ServiceAttribute>();
-                
+
+                var actionKey = actionAttribute?.Id ?? $"{Enum.GetName(actionAttribute.Method).ToUpper()}:{serviceAttribute?.BaseRoute}/{actionAttribute?.Route}";
+
                 if ((actionAttribute?.Authorize == true) || (serviceAttribute?.Authorize == true))
                 {
                     if (!context.User.Identity.IsAuthenticated)
@@ -166,13 +167,13 @@ namespace BlackDigital.Mvc.Rest
                 }
 
                 // Preparar parâmetros
-                var parameters = await PrepareMethodParameters(context, methodInfo, routeValues);
+                var parameters = await PrepareMethodParameters(actionKey, context, methodInfo, routeValues);
 
                 // Executar método
                 var result = methodInfo.Invoke(service, parameters);
 
                 // Processar resultado
-                await ProcessResult(context, result, methodInfo.ReturnType);
+                await ProcessResult(actionKey, context, result, methodInfo.ReturnType);
             }
             catch (BusinessException businessException)
             {
@@ -195,7 +196,7 @@ namespace BlackDigital.Mvc.Rest
         }
 
         
-        private JsonSerializerOptions getJsonOptions(HttpContext context)
+        private JsonSerializerOptions GetJsonOptions(HttpContext context)
         {
             var jsonOptions = context.RequestServices
                                 .GetService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>>()
@@ -205,10 +206,10 @@ namespace BlackDigital.Mvc.Rest
             return jsonOptions;
         }
 
-        private async Task<object[]> PrepareMethodParameters(HttpContext context, MethodInfo methodInfo, 
+        private async Task<object[]> PrepareMethodParameters(string actionKey, HttpContext context, MethodInfo methodInfo, 
                                                            Dictionary<string, object> routeValues)
         {
-            var jsonOptions = getJsonOptions(context);
+            var jsonOptions = GetJsonOptions(context);
 
             var parameters = methodInfo.GetParameters();
             var values = new object[parameters.Length];
@@ -234,8 +235,7 @@ namespace BlackDigital.Mvc.Rest
                 }
                 else if (bodyAttribute != null)
                 {
-                    var body = await ReadRequestBody(context);
-                    values[i] = System.Text.Json.JsonSerializer.Deserialize(body, parameter.ParameterType, jsonOptions);
+                    values[i] = await TransformInputBodyAsync(actionKey, context, parameter);
                 }
                 else if (headerAttribute != null)
                 {
@@ -264,6 +264,50 @@ namespace BlackDigital.Mvc.Rest
             }
 
             return values;
+        }
+
+        private async Task<object> TransformInputBodyAsync(string actionKey, HttpContext context, ParameterInfo parameter)
+        {
+            var jsonOptions = GetJsonOptions(context);
+            var body = await ReadRequestBody(context);
+            var transformManager = context.RequestServices.GetService<TransformManager>();
+
+            object apiInput = null;
+
+            if (transformManager != null)
+            {
+                var version = context.Request.Query["api-version"].FirstOrDefault();
+                version = version ?? context.Request.Headers["x-api-version"].FirstOrDefault();
+                version = version ?? "1970-01-01";
+
+                TransformKey key = new(actionKey, version, TransformDirection.Input);
+                Type type = transformManager.GetFirstInputType(key) ?? parameter.ParameterType;
+                apiInput = JsonSerializer.Deserialize(body, type, jsonOptions);
+
+                apiInput = await transformManager.TransformAsync(key, apiInput);
+            }
+            else
+            {
+                apiInput = JsonSerializer.Deserialize(body, parameter.ParameterType, jsonOptions);
+            }
+
+            return apiInput;
+        }
+
+        public async Task<object> TransformOutputBodyAsync(string actionKey, HttpContext context, object apiOutput)
+        {
+            var transformManager = context.RequestServices.GetService<TransformManager>();
+
+            if (transformManager != null)
+            {
+                var version = context.Request.Query["api-version"].FirstOrDefault();
+                version = version ?? context.Request.Headers["x-api-version"].FirstOrDefault();
+                version = version ?? "1970-01-01";
+                TransformKey key = new(actionKey, version, TransformDirection.Output);
+
+                apiOutput = await transformManager.TransformAsync(key, apiOutput);
+            }
+            return apiOutput;
         }
 
         private object ConvertValue(string value, Type targetType)
@@ -307,9 +351,9 @@ namespace BlackDigital.Mvc.Rest
             return body;
         }
 
-        private async Task ProcessResult(HttpContext context, object result, Type returnType)
+        private async Task ProcessResult(string actionKey, HttpContext context, object result, Type returnType)
         {
-            var jsonOptions = getJsonOptions(context);
+            var jsonOptions = GetJsonOptions(context);
             context.Response.ContentType = "application/json";
 
             if (returnType == typeof(void))
@@ -324,19 +368,13 @@ namespace BlackDigital.Mvc.Rest
 
                 if (returnType.IsGenericType)
                 {
-                    var taskResult = returnType.GetProperty("Result")?.GetValue(task);
-                    if (taskResult != null)
-                    {
-                        var json = JsonSerializer.Serialize(taskResult, jsonOptions);
-                        await context.Response.WriteAsync(json);
-                    }
+                    result = returnType.GetProperty("Result")?.GetValue(task);
                 }
             }
-            else
-            {
-                var json = JsonSerializer.Serialize(result, jsonOptions);
-                await context.Response.WriteAsync(json);
-            }
+
+            result = await TransformOutputBodyAsync(actionKey, context, result);
+            var json = JsonSerializer.Serialize(result, jsonOptions);
+            await context.Response.WriteAsync(json);
         }
     }
 }
