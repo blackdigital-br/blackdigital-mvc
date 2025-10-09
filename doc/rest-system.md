@@ -1,47 +1,49 @@
-# Sistema REST - BlackDigital.AspNet
+# REST System - BlackDigital.AspNet
 
-## O Que é o Sistema REST
+**[🇧🇷 Português](rest-system.pt.md) | 🇺🇸 English**
 
-O **BlackDigital.AspNet REST** é um sistema moderno e inovador para criação de APIs REST que oferece uma alternativa elegante aos controllers tradicionais do ASP.NET Core. Baseado em middleware personalizado, o sistema utiliza atributos para roteamento automático e binding inteligente de parâmetros, permitindo que desenvolvedores foquem exclusivamente na lógica de negócio.
+## What is the REST System
 
-### Características Principais
+**BlackDigital.AspNet REST** is a modern and innovative system for creating REST APIs that offers an elegant alternative to traditional ASP.NET Core controllers. Based on custom middleware, the system uses attributes for automatic routing and intelligent parameter binding, allowing developers to focus exclusively on business logic.
 
-- **Middleware-based**: Intercepta requisições HTTP antes dos controllers tradicionais
-- **Attribute-driven**: Roteamento e configuração baseados em atributos declarativos
-- **Service-oriented**: Trabalha com interfaces de serviço em vez de herança de controllers
-- **Intelligent binding**: Binding automático de parâmetros de múltiplas fontes (rota, corpo, headers, query)
-- **Integrated transformations**: Integração nativa com o sistema de transformação para versionamento de API
-- **Business-focused**: Elimina código de infraestrutura HTTP, mantendo apenas lógica de negócio
+### Key Features
 
-### Coexistência com Controllers Tradicionais
+- **Middleware-based**: Intercepts HTTP requests before traditional controllers
+- **Attribute-driven**: Routing and configuration based on declarative attributes
+- **Service-oriented**: Works with service interfaces instead of controller inheritance
+- **Intelligent binding**: Automatic parameter binding from multiple sources (route, body, headers, query)
+- **Integrated transformations**: Native integration with the transformation system for API versioning
+- **Business-focused**: Eliminates HTTP infrastructure code, keeping only business logic
 
-O sistema REST **coexiste perfeitamente** com controllers tradicionais do ASP.NET Core:
+### Coexistence with Traditional Controllers
 
-- **Uso simultâneo**: Ambas as abordagens podem ser usadas no mesmo projeto
-- **Migração gradual**: Migre endpoints específicos conforme necessário
-- **Flexibilidade total**: Use controllers tradicionais para casos específicos que precisam de controle total sobre HTTP
-- **Sem conflitos**: O middleware REST processa apenas rotas configuradas com atributos `[Service]`
+The REST system **coexists perfectly** with traditional ASP.NET Core controllers:
 
-## Como Usar: Implementação Prática
+- **Simultaneous use**: Both approaches can be used in the same project
+- **Gradual migration**: Migrate specific endpoints as needed
+- **Total flexibility**: Use traditional controllers for specific cases that need full HTTP control
+- **No conflicts**: REST middleware only processes routes configured with `[Service]` attributes
 
-### 1. Configuração no Program.cs
+## How to Use: Practical Implementation
+
+### 1. Configuration in Program.cs
 
 ```csharp
 using BlackDigital.AspNet.Rest;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Registrar serviços REST
+// 1. Register REST services
 builder.Services.AddRestServices(restService =>
 {
     restService.AddService<IUserService, UserService>();
     restService.AddService<IProductService, ProductService>();
 });
 
-// 2. Configurar opções MVC (necessário para o sistema REST)
+// 2. Configure MVC options (required for REST system)
 builder.Services.AddRestMvcOptions();
 
-// 3. Configurar transformações (opcional)
+// 3. Configure transformations (optional)
 builder.Services.AddTransform(transformConfig =>
 {
     transformConfig.AddRule<UserV1ToV2>("POST:api/users/", "2024-01-01");
@@ -50,17 +52,17 @@ builder.Services.AddTransform(transformConfig =>
 
 var app = builder.Build();
 
-// 4. Configurar pipeline de middleware
-app.UseRestMiddleware(); // Deve vir antes de UseAuthorization
+// 4. Configure middleware pipeline
+app.UseRestMiddleware(); // Must come before UseAuthorization
 app.UseAuthorization();
-app.MapControllers(); // Controllers tradicionais continuam funcionando
+app.MapControllers(); // Traditional controllers continue working
 
 app.Run();
 ```
 
-### 2. Criação de um Serviço de Negócio
+### 2. Creating a Business Service
 
-#### Definindo a Interface
+#### Defining the Interface
 
 ```csharp
 using BlackDigital.Rest;
@@ -85,7 +87,7 @@ public interface IUserService
 }
 ```
 
-#### Implementando o Serviço
+#### Implementing the Service
 
 ```csharp
 public class UserService : IUserService
@@ -101,22 +103,22 @@ public class UserService : IUserService
 
     public async Task<User> GetUserAsync(int id)
     {
-        _logger.LogInformation("Buscando usuário {UserId}", id);
+        _logger.LogInformation("Searching for user {UserId}", id);
         
         var user = await _repository.GetByIdAsync(id);
         if (user == null)
-            BusinessException.ThrowNotFound("Usuário não encontrado");
+            BusinessException.ThrowNotFound("User not found");
         
         return user;
     }
 
     public async Task<User> CreateUserAsync(CreateUserRequest request)
     {
-        _logger.LogInformation("Criando novo usuário: {Email}", request.Email);
+        _logger.LogInformation("Creating new user: {Email}", request.Email);
         
-        // Validações de negócio
+        // Business validations
         if (await _repository.ExistsByEmailAsync(request.Email))
-            BusinessException.ThrowConflict("Email já está em uso");
+            BusinessException.ThrowConflict("Email is already in use");
         
         var user = new User
         {
@@ -132,7 +134,7 @@ public class UserService : IUserService
     {
         var user = await _repository.GetByIdAsync(id);
         if (user == null)
-            BusinessException.ThrowNotFound("Usuário não encontrado");
+            BusinessException.ThrowNotFound("User not found");
         
         user.Name = request.Name;
         user.UpdatedAt = DateTime.UtcNow;
@@ -144,7 +146,7 @@ public class UserService : IUserService
     {
         var user = await _repository.GetByIdAsync(id);
         if (user == null)
-            BusinessException.ThrowNotFound("Usuário não encontrado");
+            BusinessException.ThrowNotFound("User not found");
         
         await _repository.DeleteAsync(id);
     }
@@ -156,33 +158,33 @@ public class UserService : IUserService
 }
 ```
 
-### 3. Entendendo os Atributos
+### 3. Understanding Attributes
 
 #### ServiceAttribute
-Define a rota base do serviço:
+Defines the service base route:
 ```csharp
-[Service("api/users")] // Todas as ações terão prefixo "api/users"
+[Service("api/users")] // All actions will have "api/users" prefix
 ```
 
 #### ActionAttribute
-Configura métodos HTTP e rotas específicas:
+Configures HTTP methods and specific routes:
 ```csharp
 [Action("{id}", method: RestMethod.Get, authorize: false)]
-// Rota: GET /api/users/{id}
-// Autorização: não requerida
+// Route: GET /api/users/{id}
+// Authorization: not required
 
 [Action("search", method: RestMethod.Get)]
-// Rota: GET /api/users/search
-// Autorização: requerida (padrão)
+// Route: GET /api/users/search
+// Authorization: required (default)
 ```
 
-#### Atributos de Binding
-- **`[Path]`**: Extrai valores da rota da URL
-- **`[Body]`**: Extrai dados do corpo da requisição
-- **`[Query]`**: Extrai valores da query string
-- **`[Header]`**: Extrai valores dos cabeçalhos HTTP
+#### Binding Attributes
+- **`[Path]`**: Extracts values from URL route
+- **`[Body]`**: Extracts data from request body
+- **`[Query]`**: Extracts values from query string
+- **`[Header]`**: Extracts values from HTTP headers
 
-### 4. Exemplo Prático: API de Usuários
+### 4. Practical Example: User API
 
 ```csharp
 [Service("api/users")]
@@ -214,50 +216,50 @@ public interface IUserService
 }
 ```
 
-### 5. Exemplo com Autorização
+### 5. Example with Authorization
 
 ```csharp
 [Service("api/admin")]
 public interface IAdminService
 {
-    // Público - não requer autorização
+    // Public - no authorization required
     [Action("health", method: RestMethod.Get, authorize: false)]
     Task<HealthStatus> GetHealthAsync();
 
-    // Requer autorização (padrão)
+    // Requires authorization (default)
     [Action("users", method: RestMethod.Get)]
     Task<List<User>> GetAllUsersAsync();
 
-    // Requer autorização específica
+    // Requires specific authorization
     [Action("users/{id}/ban", method: RestMethod.Post, authorize: true)]
     Task BanUserAsync([Path] int id, [Body] BanRequest request);
 }
 ```
 
-## Integração com Sistema de Transformação
+## Integration with Transformation System
 
-O sistema REST integra-se nativamente com o sistema de transformação do BlackDigital.AspNet, oferecendo versionamento automático de APIs e compatibilidade com versões anteriores.
+The REST system integrates natively with BlackDigital.AspNet's transformation system, offering automatic API versioning and backward compatibility.
 
-### Configuração Básica
+### Basic Configuration
 
 ```csharp
 // Program.cs
 builder.Services.AddTransform(config =>
 {
-    // Transformações para versionamento de usuários
+    // Transformations for user versioning
     config.AddRule<UserV1ToV2>("POST:api/users/", "2024-01-01");
     config.AddRule<UserV2ToV1>("POST:api/users/", "2024-01-01");
     
-    // Transformações específicas por endpoint
+    // Endpoint-specific transformations
     config.AddInputRule<CreateUserV1ToV2>("POST:api/users/", "2024-01-01");
     config.AddOutputRule<UserV2ToV1>("GET:api/users/", "2024-01-01");
 });
 ```
 
-### Definindo Regras de Transformação
+### Defining Transformation Rules
 
 ```csharp
-// Transformação de entrada: V1 → V2
+// Input transformation: V1 → V2
 public class UserV1ToV2 : ITransformRule
 {
     public string Apply(string input, TransformContext context)
@@ -268,7 +270,7 @@ public class UserV1ToV2 : ITransformRule
             Id = userV1.Id,
             FullName = userV1.Name, // V1: Name → V2: FullName
             Email = userV1.Email,
-            Profile = new UserProfile // Novo campo em V2
+            Profile = new UserProfile // New field in V2
             {
                 Bio = "",
                 Avatar = ""
@@ -278,7 +280,7 @@ public class UserV1ToV2 : ITransformRule
     }
 }
 
-// Transformação de saída: V2 → V1
+// Output transformation: V2 → V1
 public class UserV2ToV1 : ITransformRule
 {
     public string Apply(string input, TransformContext context)
@@ -289,19 +291,19 @@ public class UserV2ToV1 : ITransformRule
             Id = userV2.Id,
             Name = userV2.FullName, // V2: FullName → V1: Name
             Email = userV2.Email
-            // Profile é omitido na V1
+            // Profile is omitted in V1
         };
         return JsonSerializer.Serialize(userV1);
     }
 }
 ```
 
-### Versionamento Automático de API
+### Automatic API Versioning
 
-O sistema suporta múltiplas versões da mesma API automaticamente:
+The system supports multiple versions of the same API automatically:
 
 ```csharp
-// Serviço V1
+// Service V1
 [Service("api/v1/users")]
 public interface IUserServiceV1
 {
@@ -309,7 +311,7 @@ public interface IUserServiceV1
     Task<UserV1> CreateUserAsync([Body] UserV1 user);
 }
 
-// Serviço V2
+// Service V2
 [Service("api/v2/users")]
 public interface IUserServiceV2
 {
@@ -317,7 +319,7 @@ public interface IUserServiceV2
     Task<UserV2> CreateUserAsync([Body] UserV2 user);
 }
 
-// Configuração
+// Configuration
 builder.Services.AddRestServices(config =>
 {
     config.AddService<IUserServiceV1, UserServiceV1>();
@@ -325,25 +327,25 @@ builder.Services.AddRestServices(config =>
 });
 ```
 
-### Transformação Automática via Headers
+### Automatic Transformation via Headers
 
-O sistema pode aplicar transformações baseadas em cabeçalhos HTTP:
+The system can apply transformations based on HTTP headers:
 
 ```csharp
-// Cliente especifica versão via header
+// Client specifies version via header
 // Accept: application/json; version=1.0
-// → Sistema aplica transformação V2→V1 na resposta
+// → System applies V2→V1 transformation on response
 
 // api-version: 2024-01-01
-// → Sistema aplica transformações baseadas na data
+// → System applies transformations based on date
 ```
 
-### Exemplo Prático: Evolução de API
+### Practical Example: API Evolution
 
-**Cenário**: Adição de campo `profile` na versão 2 da API de usuários
+**Scenario**: Adding `profile` field in version 2 of the user API
 
 ```csharp
-// V1: Estrutura original
+// V1: Original structure
 public class UserV1
 {
     public int Id { get; set; }
@@ -351,16 +353,16 @@ public class UserV1
     public string Email { get; set; }
 }
 
-// V2: Estrutura evoluída
+// V2: Evolved structure
 public class UserV2
 {
     public int Id { get; set; }
-    public string FullName { get; set; } // Renomeado de Name
+    public string FullName { get; set; } // Renamed from Name
     public string Email { get; set; }
-    public UserProfile Profile { get; set; } // Novo campo
+    public UserProfile Profile { get; set; } // New field
 }
 
-// Serviço unificado que trabalha com V2 internamente
+// Unified service that works with V2 internally
 [Service("api/users")]
 public interface IUserService
 {
@@ -368,37 +370,37 @@ public interface IUserService
     Task<UserV2> CreateUserAsync([Body] UserV2 user);
 }
 
-// Transformações automáticas garantem compatibilidade
-// POST /api/users com dados V1 → Transformado para V2 → Processado → Resposta transformada para V1
+// Automatic transformations ensure compatibility
+// POST /api/users with V1 data → Transformed to V2 → Processed → Response transformed to V1
 ```
 
-### Benefícios da Integração
+### Integration Benefits
 
-1. **Compatibilidade Garantida**: Clientes antigos continuam funcionando
-2. **Evolução Gradual**: Adicione novos campos sem quebrar APIs existentes
-3. **Código Unificado**: Um serviço atende múltiplas versões
-4. **Transformação Automática**: Sem código manual de conversão
-5. **Testabilidade**: Transformações podem ser testadas independentemente
-6. **Documentação Automática**: Versões são documentadas automaticamente
+1. **Guaranteed Compatibility**: Old clients continue working
+2. **Gradual Evolution**: Add new fields without breaking existing APIs
+3. **Unified Code**: One service serves multiple versions
+4. **Automatic Transformation**: No manual conversion code
+5. **Testability**: Transformations can be tested independently
+6. **Automatic Documentation**: Versions are documented automatically
 
-## Benefícios e Vantagens
+## Benefits and Advantages
 
-### 1. Foco Total na Lógica de Negócio
+### 1. Total Focus on Business Logic
 
-O sistema elimina completamente o código de infraestrutura HTTP, permitindo que você se concentre apenas no que realmente importa:
+The system completely eliminates HTTP infrastructure code, allowing you to focus only on what really matters:
 
 ```csharp
-// ✅ Com BlackDigital.AspNet REST - Apenas lógica de negócio
+// ✅ With BlackDigital.AspNet REST - Only business logic
 public async Task<User> GetUserAsync(int id)
 {
     var user = await _repository.GetByIdAsync(id);
     if (user == null)
-        BusinessException.ThrowNotFound("Usuário não encontrado");
+        BusinessException.ThrowNotFound("User not found");
     
-    return user; // Serialização automática
+    return user; // Automatic serialization
 }
 
-// ❌ Controller tradicional - Mistura infraestrutura + negócio
+// ❌ Traditional controller - Mixes infrastructure + business
 [HttpGet("{id}")]
 public async Task<IActionResult> GetUser(int id)
 {
@@ -406,33 +408,33 @@ public async Task<IActionResult> GetUser(int id)
     {
         var user = await _repository.GetByIdAsync(id);
         if (user == null)
-            return NotFound(); // Código de infraestrutura
+            return NotFound(); // Infrastructure code
         
-        return Ok(user); // Código de infraestrutura
+        return Ok(user); // Infrastructure code
     }
     catch (Exception ex)
     {
-        return StatusCode(500, "Erro interno"); // Código de infraestrutura
+        return StatusCode(500, "Internal error"); // Infrastructure code
     }
 }
 ```
 
-### 2. Produtividade Extrema
+### 2. Extreme Productivity
 
-**Redução significativa de código:**
-- 70% menos linhas de código
-- 100% menos código de infraestrutura
-- Desenvolvimento 3x mais rápido
+**Significant code reduction:**
+- 70% fewer lines of code
+- 100% less infrastructure code
+- 3x faster development
 
 ```csharp
-// Comparação: CRUD completo de usuários
-// Controller tradicional: ~120 linhas
-// BlackDigital.AspNet REST: ~35 linhas
+// Comparison: Complete user CRUD
+// Traditional controller: ~120 lines
+// BlackDigital.AspNet REST: ~35 lines
 ```
 
-### 3. Testabilidade Superior
+### 3. Superior Testability
 
-Testes focados apenas na lógica de negócio, sem dependências HTTP:
+Tests focused only on business logic, without HTTP dependencies:
 
 ```csharp
 [Test]
@@ -441,150 +443,150 @@ public async Task GetUser_WhenUserExists_ShouldReturnUser()
     // Arrange
     var mockRepository = new Mock<IUserRepository>();
     mockRepository.Setup(r => r.GetByIdAsync(1))
-              .ReturnsAsync(new User { Id = 1, Name = "João" });
+              .ReturnsAsync(new User { Id = 1, Name = "John" });
     
     var service = new UserService(mockRepository.Object);
     
-    // Act - Sem dependências HTTP!
+    // Act - No HTTP dependencies!
     var result = await service.GetUserAsync(1);
     
-    // Assert - Apenas lógica de negócio
+    // Assert - Only business logic
     Assert.That(result.Id, Is.EqualTo(1));
-    Assert.That(result.Name, Is.EqualTo("João"));
+    Assert.That(result.Name, Is.EqualTo("John"));
 }
 ```
 
-### 4. Flexibilidade e Reutilização
+### 4. Flexibility and Reusability
 
-Serviços podem ser reutilizados em diferentes contextos:
+Services can be reused in different contexts:
 
 ```csharp
 public class UserService : IUserService
 {
-    // Este mesmo serviço pode ser usado em:
-    // ✅ API REST (via RestMiddleware)
+    // This same service can be used in:
+    // ✅ REST API (via RestMiddleware)
     // ✅ GraphQL (via resolvers)
     // ✅ Background jobs
-    // ✅ Testes unitários
-    // ✅ Outros serviços (injeção de dependência)
+    // ✅ Unit tests
+    // ✅ Other services (dependency injection)
     // ✅ Console applications
     // ✅ Blazor Server/WASM
 }
 ```
 
-### 5. Coexistência com Controllers Tradicionais
+### 5. Coexistence with Traditional Controllers
 
-O sistema não substitui, mas **complementa** controllers tradicionais:
+The system doesn't replace, but **complements** traditional controllers:
 
 ```csharp
-// ✅ Use REST para APIs de negócio padrão
+// ✅ Use REST for standard business APIs
 [Service("api/users")]
 public interface IUserService { }
 
-// ✅ Use Controllers para casos específicos
+// ✅ Use Controllers for specific cases
 [ApiController]
 [Route("api/files")]
 public class FileController : ControllerBase
 {
-    // Upload de arquivos, streaming, etc.
+    // File upload, streaming, etc.
     [HttpPost("upload")]
     public async Task<IActionResult> Upload(IFormFile file) { }
 }
 ```
 
-### 6. Automações Inteligentes
+### 6. Intelligent Automations
 
-O sistema automatiza tarefas repetitivas:
+The system automates repetitive tasks:
 
-- **Roteamento**: Baseado em atributos, sem configuração manual
-- **Binding**: Automático de múltiplas fontes (rota, corpo, headers, query)
-- **Validação**: Automática com base em atributos e tipos
-- **Serialização**: JSON otimizado com configurações padrão
-- **Tratamento de erros**: Conversão automática de exceções para HTTP status
-- **Transformação**: Versionamento automático de API
-- **Autorização**: Verificação automática baseada em atributos
+- **Routing**: Based on attributes, no manual configuration
+- **Binding**: Automatic from multiple sources (route, body, headers, query)
+- **Validation**: Automatic based on attributes and types
+- **Serialization**: Optimized JSON with default configurations
+- **Error handling**: Automatic conversion of exceptions to HTTP status
+- **Transformation**: Automatic API versioning
+- **Authorization**: Automatic verification based on attributes
 
-### 7. Performance e Eficiência
+### 7. Performance and Efficiency
 
-O sistema é otimizado para performance:
+The system is optimized for performance:
 
-- Menos overhead que controllers tradicionais
-- Binding direto de parâmetros
-- Serialização otimizada
-- Menos alocações de memória
-- Pipeline de middleware enxuto
+- Less overhead than traditional controllers
+- Direct parameter binding
+- Optimized serialization
+- Fewer memory allocations
+- Lean middleware pipeline
 
-## Detalhamento Técnico
+## Technical Details
 
-### Arquitetura do Sistema
+### System Architecture
 
-O sistema REST é composto por quatro componentes principais:
+The REST system consists of four main components:
 
-1. **RestMiddleware**: Middleware principal que intercepta e processa requisições
-2. **RestHelper**: Métodos auxiliares para configuração do MVC
-3. **RestServiceBuilder**: Builder para configuração e registro de serviços
-4. **RestMiddlewareExtensions**: Extensões para integração com o container DI
+1. **RestMiddleware**: Main middleware that intercepts and processes requests
+2. **RestHelper**: Helper methods for MVC configuration
+3. **RestServiceBuilder**: Builder for service configuration and registration
+4. **RestMiddlewareExtensions**: Extensions for DI container integration
 
 #### RestMiddleware
 
-O `RestMiddleware` é o coração do sistema REST, responsável por interceptar requisições HTTP e roteá-las para os serviços apropriados.
+The `RestMiddleware` is the heart of the REST system, responsible for intercepting HTTP requests and routing them to appropriate services.
 
-**Funcionalidades Principais:**
-- Interceptação de requisições HTTP
-- Roteamento baseado em atributos
-- Binding de parâmetros de múltiplas fontes
-- Transformação de dados automática
-- Autorização baseada em atributos
-- Tratamento padronizado de exceções
+**Main Features:**
+- HTTP request interception
+- Attribute-based routing
+- Multi-source parameter binding
+- Automatic data transformation
+- Attribute-based authorization
+- Standardized exception handling
 
-**Fluxo de Processamento:**
-1. Interceptação da requisição HTTP
-2. Descoberta do serviço baseado no `ServiceAttribute`
-3. Identificação do método baseado no `ActionAttribute`
-4. Extração e conversão de parâmetros
-5. Transformação de entrada (se configurada)
-6. Execução do método do serviço
-7. Transformação de saída (se configurada)
-8. Serialização e retorno da resposta
+**Processing Flow:**
+1. HTTP request interception
+2. Service discovery based on `ServiceAttribute`
+3. Method identification based on `ActionAttribute`
+4. Parameter extraction and conversion
+5. Input transformation (if configured)
+6. Service method execution
+7. Output transformation (if configured)
+8. Response serialization and return
 
-#### Sistema de Atributos
+#### Attribute System
 
-**ServiceAttribute**: Define a rota base do serviço
+**ServiceAttribute**: Defines the service base route
 ```csharp
 [Service("api/user")]
 public interface IUserService { }
 ```
 
-**ActionAttribute**: Configura métodos HTTP e rotas específicas
+**ActionAttribute**: Configures HTTP methods and specific routes
 ```csharp
 [Action(method: RestMethod.Get, route: "{id}", authorize: true)]
 Task<User> GetUserAsync([Path] int id);
 ```
 
-**Atributos de Binding:**
-- `[Path]`: Extrai valores da rota da URL
-- `[Body]`: Extrai dados do corpo da requisição
-- `[Header]`: Extrai valores dos cabeçalhos HTTP
-- `[Query]`: Extrai valores da query string
+**Binding Attributes:**
+- `[Path]`: Extracts values from URL route
+- `[Body]`: Extracts data from request body
+- `[Header]`: Extracts values from HTTP headers
+- `[Query]`: Extracts values from query string
 
-### Configuração Avançada
+### Advanced Configuration
 
-#### Configuração no Program.cs
+#### Configuration in Program.cs
 
 ```csharp
 using BlackDigital.AspNet.Rest;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Registrar serviços REST
+// 1. Register REST services
 builder.Services.AddRest(config =>
 {
     config.AddService<IUserService, UserService>();
     config.AddService<IProductService, ProductService>();
-    config.EnableTransformations(); // Opcional
+    config.EnableTransformations(); // Optional
 });
 
-// 2. Configurar transformações (se necessário)
+// 2. Configure transformations (if needed)
 builder.Services.AddTransform(config =>
 {
     config.AddRule<UserV1ToV2>();
@@ -593,25 +595,25 @@ builder.Services.AddTransform(config =>
 
 var app = builder.Build();
 
-// 3. Configurar pipeline
-app.UseTransform(); // Se usando transformações
+// 3. Configure pipeline
+app.UseTransform(); // If using transformations
 app.UseRest();
 app.UseAuthorization();
 
 app.Run();
 ```
 
-#### Funcionalidades Avançadas
+#### Advanced Features
 
-**Autorização Flexível:**
+**Flexible Authorization:**
 ```csharp
-[Action(method: RestMethod.Get, authorize: false)]     // Público
-[Action(method: RestMethod.Post, authorize: true)]     // Requer auth
-[Action(method: RestMethod.Delete, roles: "Admin")]    // Requer role
-[Action(method: RestMethod.Put, policy: "EditUser")]   // Requer policy
+[Action(method: RestMethod.Get, authorize: false)]     // Public
+[Action(method: RestMethod.Post, authorize: true)]     // Requires auth
+[Action(method: RestMethod.Delete, roles: "Admin")]    // Requires role
+[Action(method: RestMethod.Put, policy: "EditUser")]   // Requires policy
 ```
 
-**Binding Complexo:**
+**Complex Binding:**
 ```csharp
 [Action("search/{category}", method: RestMethod.Post)]
 Task<List<Product>> SearchAsync(
@@ -623,43 +625,43 @@ Task<List<Product>> SearchAsync(
 );
 ```
 
-**Tratamento de Erros:**
+**Error Handling:**
 ```csharp
 public async Task<User> GetUserAsync(int id)
 {
     var user = await _repository.GetByIdAsync(id);
     
     if (user == null)
-        BusinessException.ThrowNotFound("Usuário não encontrado");
+        BusinessException.ThrowNotFound("User not found");
     
     if (!user.IsActive)
-        BusinessException.ThrowForbidden("Usuário inativo");
+        BusinessException.ThrowForbidden("Inactive user");
     
     return user;
 }
 ```
 
-### Melhores Práticas
+### Best Practices
 
-#### 1. Organização de Serviços
-- Mantenha interfaces focadas em um domínio específico
-- Use nomes descritivos para rotas e ações
-- Agrupe funcionalidades relacionadas
+#### 1. Service Organization
+- Keep interfaces focused on a specific domain
+- Use descriptive names for routes and actions
+- Group related functionalities
 
-#### 2. Configuração de Rotas
+#### 2. Route Configuration
 ```csharp
-// ✅ Bom: Rotas claras e RESTful
+// ✅ Good: Clear and RESTful routes
 [Service("api/users")]
 [Action("{id}", method: RestMethod.Get)]
 
-// ❌ Evitar: Rotas confusas
+// ❌ Avoid: Confusing routes
 [Service("api")]
 [Action("getUserById/{id}", method: RestMethod.Get)]
 ```
 
-#### 3. Binding de Parâmetros
+#### 3. Parameter Binding
 ```csharp
-// ✅ Bom: Uso apropriado dos atributos
+// ✅ Good: Appropriate use of attributes
 [Action("{id}/orders", method: RestMethod.Get)]
 Task<List<Order>> GetUserOrdersAsync(
     [Path] int id,
@@ -668,44 +670,50 @@ Task<List<Order>> GetUserOrdersAsync(
 );
 ```
 
-#### 4. Tratamento de Erros
+#### 4. Error Handling
 ```csharp
-// ✅ Bom: Usar BusinessException para erros de negócio
+// ✅ Good: Use BusinessException for business errors
 public async Task<User> GetUserAsync(int id)
 {
     var user = await _repository.GetByIdAsync(id);
     if (user == null)
-        BusinessException.ThrowNotFound($"Usuário {id} não encontrado");
+        BusinessException.ThrowNotFound($"User {id} not found");
     
     return user;
 }
 ```
 
-## Conclusão
+## Conclusion
 
-O sistema REST do BlackDigital.AspNet oferece uma abordagem moderna e produtiva para desenvolvimento de APIs, permitindo que desenvolvedores foquem na lógica de negócio enquanto o framework cuida da infraestrutura HTTP.
+BlackDigital.AspNet's REST system offers a modern and productive approach to API development, allowing developers to focus on business logic while the framework handles HTTP infrastructure.
 
-### Principais Vantagens
+### Key Advantages
 
-1. **Produtividade**: Desenvolvimento até 3x mais rápido
-2. **Qualidade**: Redução significativa de bugs
-3. **Manutenibilidade**: Código mais limpo e focado
-4. **Testabilidade**: Testes mais simples e eficazes
-5. **Flexibilidade**: Coexistência com controllers tradicionais
-6. **Evolução**: Versionamento automático com transformações
+1. **Productivity**: Up to 3x faster development
+2. **Quality**: Significant bug reduction
+3. **Maintainability**: Cleaner and more focused code
+4. **Testability**: Simpler and more effective tests
+5. **Flexibility**: Coexistence with traditional controllers
+6. **Evolution**: Automatic versioning with transformations
 
-### Quando Usar
+### When to Use
 
-**Ideal para:**
-- APIs de negócio padrão
-- Operações CRUD
-- Serviços com lógica de domínio complexa
-- Projetos que precisam de versionamento de API
-- Equipes que querem focar na lógica de negócio
+**Ideal for:**
+- Standard business APIs
+- CRUD operations
+- Services with complex domain logic
+- Projects that need API versioning
+- Teams that want to focus on business logic
 
-**Coexistência com Controllers:**
-- Use controllers tradicionais para casos específicos que precisam de controle total sobre HTTP
-- Use o sistema REST para a maioria das APIs de negócio
-- Migre gradualmente conforme necessário
+**Coexistence with Controllers:**
+- Use traditional controllers for specific cases that need full HTTP control
+- Use the REST system for most business APIs
+- Migrate gradually as needed
 
-O BlackDigital.AspNet REST representa uma evolução natural no desenvolvimento de APIs, mantendo a simplicidade sem sacrificar a flexibilidade.
+BlackDigital.AspNet REST represents a natural evolution in API development, maintaining simplicity without sacrificing flexibility.
+
+---
+
+**Related Documentation:**
+- [Transformation System](transform-system.md)
+- [Main Documentation](../README.md)
