@@ -1,4 +1,4 @@
-﻿namespace BlackDigital.Mvc.Example.Models
+namespace BlackDigital.AspNet.Example.Models
 {
     public class SaveUser
     {

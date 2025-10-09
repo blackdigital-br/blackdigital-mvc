@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\BlackDigital.Mvc.csproj" />
+    <ProjectReference Include="..\src\BlackDigital.AspNet.csproj" />
   </ItemGroup>
 
 </Project>

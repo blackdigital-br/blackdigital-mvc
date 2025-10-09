@@ -2,7 +2,7 @@
 using BlackDigital.Model;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace BlackDigital.Mvc.Binder
+namespace BlackDigital.AspNet.Binder
 {
     /// <summary>
     /// Provedor de model binder personalizado que fornece o <see cref="IdBinder"/> 

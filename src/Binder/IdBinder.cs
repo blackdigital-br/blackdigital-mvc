@@ -1,7 +1,7 @@
 using BlackDigital.Model;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace BlackDigital.Mvc.Binder
+namespace BlackDigital.AspNet.Binder
 {
     /// <summary>
     /// Model binder personalizado que converte valores de string em objetos do tipo Id.

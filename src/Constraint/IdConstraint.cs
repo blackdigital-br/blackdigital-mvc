@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace BlackDigital.Mvc.Constraint
+namespace BlackDigital.AspNet.Constraint
 {
     /// <summary>
     /// Custom route constraint that validates if a route value is a valid string representation of an ID.

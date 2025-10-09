@@ -1,13 +1,13 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc", "src\BlackDigital.Mvc.csproj", "{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.AspNet", "src\BlackDigital.AspNet.csproj", "{86C4D94C-7E43-4B7A-8F27-68F9AEE63BF3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc.Example", "example\BlackDigital.Mvc.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.AspNet.Example", "example\BlackDigital.AspNet.Example.csproj", "{11949A78-DF7F-4018-A974-8C69A462BDCD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.Mvc.Test", "test\BlackDigital.Mvc.Test.csproj", "{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlackDigital.AspNet.Test", "test\BlackDigital.AspNet.Test.csproj", "{F3B65351-1D90-4CF4-BFCA-69D017C34C3A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

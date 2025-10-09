@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>Logo128.png</PackageIcon>
+		<Version>25.10.7.16</Version>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>BlackDigital.AspNet</Title>
+		<Description>BlackDigital ASP.NET Core Extensions</Description>
+		<Authors>BlackDigital</Authors>
+		<Company>BlackDigital</Company>
+		<RepositoryUrl>https://github.com/blackdigital-br/blackdigital-mvc</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageProjectUrl>https://github.com/blackdigital-br/blackdigital-mvc</PackageProjectUrl>
+		<PackageTags>BlackDigital;AspNet;AspNetCore;Extensions;Helpers;Utilities</PackageTags>	
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\doc\images\Logo128.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BlackDigital" Version="25.10.8.15" />
+	</ItemGroup>
+
+</Project>

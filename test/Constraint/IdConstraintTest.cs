@@ -1,9 +1,9 @@
-using BlackDigital.Mvc.Constraint;
+using BlackDigital.AspNet.Constraint;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Moq;
 
-namespace BlackDigital.Mvc.Test.Constraint
+namespace BlackDigital.AspNet.Test.Constraint
 {
     public class IdConstraintTest
     {

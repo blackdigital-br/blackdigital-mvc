@@ -1,7 +1,7 @@
-﻿
-using BlackDigital.Mvc.Infrastructures;
 
-namespace BlackDigital.Mvc.Services
+using BlackDigital.AspNet.Infrastructures;
+
+namespace BlackDigital.AspNet.Services
 {
     public class EmailTemplate
     {

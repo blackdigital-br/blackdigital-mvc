@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.Mvc.Rest
+namespace BlackDigital.AspNet.Rest
 {
     public static class RestMiddlewareExtensions
     {

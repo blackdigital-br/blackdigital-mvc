@@ -1,9 +1,9 @@
-﻿using BlackDigital.Model;
-using BlackDigital.Mvc.Binder;
+using BlackDigital.Model;
+using BlackDigital.AspNet.Binder;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 
-namespace BlackDigital.Mvc.Test.Binder
+namespace BlackDigital.AspNet.Test.Binder
 {
     public class IdModelBinderProviderTest
     {

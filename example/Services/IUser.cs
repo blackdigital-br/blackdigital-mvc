@@ -1,7 +1,7 @@
-﻿using BlackDigital.Mvc.Example.Models;
+using BlackDigital.AspNet.Example.Models;
 using BlackDigital.Rest;
 
-namespace BlackDigital.Mvc.Example.Services
+namespace BlackDigital.AspNet.Example.Services
 {
     [Service("api/user")]
     public interface IUser

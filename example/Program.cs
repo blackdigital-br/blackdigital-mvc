@@ -1,7 +1,7 @@
-using BlackDigital.Mvc.Example.Services;
-using BlackDigital.Mvc.Example.Transform;
-using BlackDigital.Mvc.Rest;
-using BlackDigital.Mvc.Rest.Trasnforms;
+using BlackDigital.AspNet.Example.Services;
+using BlackDigital.AspNet.Example.Transform;
+using BlackDigital.AspNet.Rest;
+using BlackDigital.AspNet.Rest.Trasnforms;
 
 var builder = WebApplication.CreateBuilder(args);
 

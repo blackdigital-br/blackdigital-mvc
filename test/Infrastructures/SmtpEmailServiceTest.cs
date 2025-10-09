@@ -1,11 +1,11 @@
-using BlackDigital.Mvc.Infrastructures;
+using BlackDigital.AspNet.Infrastructures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Reflection;
 using Xunit;
 
-namespace BlackDigital.Mvc.Test.Infrastructures
+namespace BlackDigital.AspNet.Test.Infrastructures
 {
     public class SmtpEmailServiceTest
     {

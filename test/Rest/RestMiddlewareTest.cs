@@ -1,4 +1,4 @@
-using BlackDigital.Mvc.Rest;
+using BlackDigital.AspNet.Rest;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -7,7 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
-namespace BlackDigital.Mvc.Test.Rest
+namespace BlackDigital.AspNet.Test.Rest
 {
     public class RestMiddlewareTest
     {

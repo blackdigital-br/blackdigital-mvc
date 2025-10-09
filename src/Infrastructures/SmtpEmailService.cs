@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Mail;
 
-namespace BlackDigital.Mvc.Infrastructures
+namespace BlackDigital.AspNet.Infrastructures
 {
     /// <summary>
     /// Implementação do serviço de email usando protocolo SMTP.

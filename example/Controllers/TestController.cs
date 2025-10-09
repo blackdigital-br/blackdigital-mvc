@@ -1,10 +1,10 @@
-﻿using BlackDigital.Model;
-using BlackDigital.Mvc.Example.Services;
-using BlackDigital.Mvc.Rest;
+using BlackDigital.Model;
+using BlackDigital.AspNet.Example.Services;
+using BlackDigital.AspNet.Rest;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BlackDigital.Mvc.Example.Controllers
+namespace BlackDigital.AspNet.Example.Controllers
 {
     [ApiController]
     [Microsoft.AspNetCore.Mvc.Route("[controller]")]

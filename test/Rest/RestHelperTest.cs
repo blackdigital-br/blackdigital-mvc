@@ -1,6 +1,6 @@
-using BlackDigital.Mvc.Binder;
-using BlackDigital.Mvc.Constraint;
-using BlackDigital.Mvc.Rest;
+using BlackDigital.AspNet.Binder;
+using BlackDigital.AspNet.Constraint;
+using BlackDigital.AspNet.Rest;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 
-namespace BlackDigital.Mvc.Test.Rest
+namespace BlackDigital.AspNet.Test.Rest
 {
     public class RestHelperTest
     {

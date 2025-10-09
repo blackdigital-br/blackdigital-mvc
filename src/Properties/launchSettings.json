@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "BlackDigital.Mvc": {
+    "BlackDigital.AspNet": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

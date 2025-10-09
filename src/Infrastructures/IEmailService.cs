@@ -1,5 +1,5 @@
-﻿
-namespace BlackDigital.Mvc.Infrastructures
+
+namespace BlackDigital.AspNet.Infrastructures
 {
     public interface IEmailService
     {

@@ -1,12 +1,12 @@
 using BlackDigital.Converters;
-using BlackDigital.Mvc.Binder;
-using BlackDigital.Mvc.Constraint;
-using BlackDigital.Mvc.Filters;
+using BlackDigital.AspNet.Binder;
+using BlackDigital.AspNet.Constraint;
+using BlackDigital.AspNet.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.Mvc.Rest
+namespace BlackDigital.AspNet.Rest
 {
     public static class RestHelper
     {

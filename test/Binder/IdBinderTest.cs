@@ -1,9 +1,9 @@
-﻿using BlackDigital.Model;
-using BlackDigital.Mvc.Binder;
+using BlackDigital.Model;
+using BlackDigital.AspNet.Binder;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Moq;
 
-namespace BlackDigital.Mvc.Test.Binder
+namespace BlackDigital.AspNet.Test.Binder
 {
     public class IdBinderTest
     {
@@ -19,7 +19,7 @@ namespace BlackDigital.Mvc.Test.Binder
             _mockValueProvider = new Mock<IValueProvider>();
             _modelState = new ModelStateDictionary();
 
-            // Setup básico do contexto
+            // Setup b�sico do contexto
             _mockBindingContext.Setup(x => x.ValueProvider).Returns(_mockValueProvider.Object);
             _mockBindingContext.Setup(x => x.ModelState).Returns(_modelState);
             _mockBindingContext.SetupProperty(x => x.Result);

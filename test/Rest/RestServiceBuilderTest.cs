@@ -1,8 +1,8 @@
-using BlackDigital.Mvc.Rest;
+using BlackDigital.AspNet.Rest;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
-namespace BlackDigital.Mvc.Test.Rest
+namespace BlackDigital.AspNet.Test.Rest
 {
     // Interfaces e classes mock para testes
     public interface ITestService

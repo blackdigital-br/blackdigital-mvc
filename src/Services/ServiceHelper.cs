@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.Mvc.Services
+namespace BlackDigital.AspNet.Services
 {
     public static class ServiceHelper
     {

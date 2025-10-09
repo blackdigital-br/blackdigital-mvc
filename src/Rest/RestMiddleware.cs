@@ -1,11 +1,11 @@
-using BlackDigital.Mvc.Rest.Trasnforms;
+using BlackDigital.AspNet.Rest.Trasnforms;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using System.Text.Json;
 
-namespace BlackDigital.Mvc.Rest
+namespace BlackDigital.AspNet.Rest
 {
     /// <summary>
     /// Middleware personalizado que intercepta requisições HTTP e as roteia para serviços baseados em atributos de rota e ação,

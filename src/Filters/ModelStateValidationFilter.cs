@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace BlackDigital.Mvc.Filters
+namespace BlackDigital.AspNet.Filters
 {
     /// <summary>
     /// Filter to handle ModelState validation errors and convert them to ErrorApiResponse format

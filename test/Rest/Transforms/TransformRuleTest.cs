@@ -1,6 +1,6 @@
-using BlackDigital.Mvc.Rest.Trasnforms;
+using BlackDigital.AspNet.Rest.Trasnforms;
 
-namespace BlackDigital.Mvc.Test.Rest.Transforms
+namespace BlackDigital.AspNet.Test.Rest.Transforms
 {
     // Concrete test classes for testing abstract TransformRule classes
     public class TestTransformRule : TransformRule

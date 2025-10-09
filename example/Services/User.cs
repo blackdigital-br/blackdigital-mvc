@@ -1,4 +1,4 @@
-﻿namespace BlackDigital.Mvc.Example.Services
+namespace BlackDigital.AspNet.Example.Services
 {
     public class User
     {

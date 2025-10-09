@@ -1,8 +1,8 @@
-using BlackDigital.Mvc.Rest.Trasnforms;
+using BlackDigital.AspNet.Rest.Trasnforms;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
-namespace BlackDigital.Mvc.Test.Rest.Transforms
+namespace BlackDigital.AspNet.Test.Rest.Transforms
 {
     // Test class for testing abstract classes
     public class ExtensionsTestTransformRule : TransformRule

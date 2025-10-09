@@ -1,10 +1,10 @@
-﻿
-using BlackDigital.Mvc.Infrastructures;
+
+using BlackDigital.AspNet.Infrastructures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
-namespace BlackDigital.Mvc.Services
+namespace BlackDigital.AspNet.Services
 {
     public class TemplateEmailService : ITemplateEmailService
     {

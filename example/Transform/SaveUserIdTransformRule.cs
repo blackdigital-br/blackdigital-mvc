@@ -1,7 +1,7 @@
-﻿using BlackDigital.Mvc.Example.Models;
-using BlackDigital.Mvc.Rest.Trasnforms;
+using BlackDigital.AspNet.Example.Models;
+using BlackDigital.AspNet.Rest.Trasnforms;
 
-namespace BlackDigital.Mvc.Example.Transform
+namespace BlackDigital.AspNet.Example.Transform
 {
     public class SaveUserIdTransformRule : TransformRule<SaveUser, int>
     {

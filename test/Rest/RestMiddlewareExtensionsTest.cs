@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using BlackDigital.Mvc.Rest;
+using BlackDigital.AspNet.Rest;
 
-namespace BlackDigital.Mvc.Test.Rest
+namespace BlackDigital.AspNet.Test.Rest
 {
     public class RestMiddlewareExtensionsTest
     {

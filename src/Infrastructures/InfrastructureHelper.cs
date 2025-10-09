@@ -1,7 +1,7 @@
-﻿
+
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.Mvc.Infrastructures
+namespace BlackDigital.AspNet.Infrastructures
 {
     public static class InfrastructureHelper
     {

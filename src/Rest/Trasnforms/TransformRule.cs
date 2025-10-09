@@ -1,4 +1,4 @@
-﻿namespace BlackDigital.Mvc.Rest.Trasnforms
+namespace BlackDigital.AspNet.Rest.Trasnforms
 {
     public abstract class TransformRule : ITransformRule
     {

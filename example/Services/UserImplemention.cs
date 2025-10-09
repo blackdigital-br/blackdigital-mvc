@@ -1,6 +1,6 @@
-﻿using BlackDigital.Mvc.Example.Models;
+using BlackDigital.AspNet.Example.Models;
 
-namespace BlackDigital.Mvc.Example.Services
+namespace BlackDigital.AspNet.Example.Services
 {
     public class UserImplemention : IUser
     {

@@ -1,7 +1,7 @@
-﻿
+
 using System.Security.Claims;
 
-namespace BlackDigital.Mvc.Services
+namespace BlackDigital.AspNet.Services
 {
     public interface ITokenService
     {
