@@ -9,7 +9,7 @@ namespace BlackDigital.AspNet.Infrastructures
     /// Implementação do serviço de email usando protocolo SMTP.
     /// Suporta múltiplos provedores de email (Gmail, Outlook, etc.) com configuração flexível e fallback.
     /// </summary>
-    public class SmtpEmailService : IEmailService
+    public class SmtpEmailService : BaseEmailService
     {
         private readonly ILogger<SmtpEmailService> _logger;
         private readonly IConfiguration _configuration;
@@ -42,6 +42,7 @@ namespace BlackDigital.AspNet.Infrastructures
                 string.IsNullOrEmpty(providerName) ? "Default" : providerName);
         }
 
+
         /// <summary>
         /// Envia um email de forma assíncrona usando protocolo SMTP.
         /// Suporta configuração específica por provedor com fallback para configuração padrão.
@@ -49,7 +50,7 @@ namespace BlackDigital.AspNet.Infrastructures
         /// <param name="email">Objeto Email contendo destinatários, assunto, corpo e configurações</param>
         /// <returns>Task representando a operação assíncrona de envio</returns>
         /// <exception cref="Exception">Lançada quando ocorre erro durante o envio do email</exception>
-        public async Task SendEmailAsync(Email email)
+        public override async Task SendEmailAsync(Email email)
         {
             try
             {

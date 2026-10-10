@@ -1,6 +1,8 @@
 using BlackDigital.AspNet.Rest;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System.Reflection;
 using System.Security.Claims;
@@ -17,6 +19,8 @@ namespace BlackDigital.AspNet.Test.Rest
         private readonly Mock<HttpRequest> _mockRequest;
         private readonly Mock<HttpResponse> _mockResponse;
         private readonly Mock<IServiceProvider> _mockServiceProvider;
+        private readonly Mock<ILogger<RestMiddleware>> _mockLogger;
+        private readonly Mock<IWebHostEnvironment> _mockEnvironment;
 
         public RestMiddlewareTest()
         {
@@ -26,9 +30,14 @@ namespace BlackDigital.AspNet.Test.Rest
             _mockRequest = new Mock<HttpRequest>();
             _mockResponse = new Mock<HttpResponse>();
             _mockServiceProvider = new Mock<IServiceProvider>();
+            _mockLogger = new Mock<ILogger<RestMiddleware>>();
+            _mockEnvironment = new Mock<IWebHostEnvironment>();
 
             SetupHttpContextMocks();
         }
+
+        private RestMiddleware CreateMiddleware(IServiceCollection services)
+            => new RestMiddleware(_mockNext.Object, services, _mockLogger.Object, _mockEnvironment.Object);
 
         private void SetupHttpContextMocks()
         {
@@ -50,7 +59,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Act & Assert
             Assert.Throws<NullReferenceException>(() => 
-                new RestMiddleware(null!, _mockServices.Object));
+                new RestMiddleware(null!, _mockServices.Object, _mockLogger.Object, _mockEnvironment.Object));
         }
 
         [Fact]
@@ -58,7 +67,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Act & Assert
             Assert.Throws<NullReferenceException>(() => 
-                new RestMiddleware(_mockNext.Object, null!));
+                new RestMiddleware(_mockNext.Object, null!, _mockLogger.Object, _mockEnvironment.Object));
         }
 
         [Fact]
@@ -68,7 +77,7 @@ namespace BlackDigital.AspNet.Test.Rest
             var services = new ServiceCollection();
 
             // Act
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
 
             // Assert
             Assert.NotNull(middleware);
@@ -79,7 +88,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
 
             _mockRequest.Setup(x => x.Path).Returns(new PathString("/unknown"));
             _mockRequest.Setup(x => x.Method).Returns("GET");
@@ -96,7 +105,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
 
             // Act & Assert
             await Assert.ThrowsAsync<NullReferenceException>(() => 
@@ -111,7 +120,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
 
             _mockRequest.Setup(x => x.Path).Returns(new PathString(path));
             _mockRequest.Setup(x => x.Method).Returns(method);
@@ -128,7 +137,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var buildFullRouteMethod = typeof(RestMiddleware)
                 .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -144,7 +153,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var buildFullRouteMethod = typeof(RestMiddleware)
                 .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -160,7 +169,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var buildFullRouteMethod = typeof(RestMiddleware)
                 .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -176,7 +185,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var buildFullRouteMethod = typeof(RestMiddleware)
                 .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -192,7 +201,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
                 .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
             var routeValues = new Dictionary<string, object>();
@@ -209,7 +218,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
                 .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
             var routeValues = new Dictionary<string, object>();
@@ -226,7 +235,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
                 .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
             var routeValues = new Dictionary<string, object>();
@@ -244,7 +253,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var convertValueMethod = typeof(RestMiddleware)
                 .GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -260,7 +269,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var convertValueMethod = typeof(RestMiddleware)
                 .GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -276,7 +285,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var convertValueMethod = typeof(RestMiddleware)
                 .GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -292,7 +301,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var convertValueMethod = typeof(RestMiddleware)
                 .GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Instance);
             var guidString = Guid.NewGuid().ToString();
@@ -312,7 +321,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var convertValueMethod = typeof(RestMiddleware)
                 .GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -328,7 +337,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var readRequestBodyMethod = typeof(RestMiddleware)
                 .GetMethod("ReadRequestBody", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -348,7 +357,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            var middleware = new RestMiddleware(_mockNext.Object, services);
+            var middleware = CreateMiddleware(services);
             var getJsonOptionsMethod = typeof(RestMiddleware)
                 .GetMethod("GetJsonOptions", BindingFlags.NonPublic | BindingFlags.Instance);
 

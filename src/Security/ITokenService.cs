@@ -1,11 +1,10 @@
-
 using System.Security.Claims;
 
-namespace BlackDigital.AspNet.Services
+namespace BlackDigital.AspNet.Security
 {
     public interface ITokenService
     {
-        string GenerateToken(Guid tokenId, int expirationMinutes = 15);
+        string GenerateToken(Guid tokenId, IEnumerable<Claim> claims, TimeSpan? expiration = null);
         ClaimsPrincipal? ValidateToken(string token);
         string GenerateRefreshToken();
         Guid? GetTokenIdFromJwt(string token);

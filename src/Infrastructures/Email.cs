@@ -6,9 +6,9 @@ namespace BlackDigital.AspNet.Infrastructures
 
         public Dictionary<string, string> Tos { get; set; } = new();
 
-        public string Subject { get; set; }
+        public string Subject { get; set; } = string.Empty;
 
-        public string Body { get; set; }
+        public string Body { get; set; } = string.Empty;
 
         public bool IsHtml { get; set; } = true;
 
@@ -45,8 +45,7 @@ namespace BlackDigital.AspNet.Infrastructures
             return this;
         }
 
-        public static Email Create()
-            => new();
+        public static Email Create() => new();
 
         public static Email Create(string to, string subject, string body, bool isHtml = true, string? provider = null)
         {

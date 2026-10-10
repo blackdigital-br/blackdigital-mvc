@@ -5,6 +5,7 @@ using BlackDigital.AspNet.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json.Serialization;
 
 namespace BlackDigital.AspNet.Rest
 {
@@ -25,6 +26,7 @@ namespace BlackDigital.AspNet.Rest
 
                 options.JsonSerializerOptions.Converters.Add(new IdConverter());
                 options.JsonSerializerOptions.Converters.Add(new TimeSpanConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
 

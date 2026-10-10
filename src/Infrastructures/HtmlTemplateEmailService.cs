@@ -1,47 +1,48 @@
-
-using BlackDigital.AspNet.Infrastructures;
-using Microsoft.Extensions.Configuration;
+using BlackDigital.AspNet.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
-namespace BlackDigital.AspNet.Services
+namespace BlackDigital.AspNet.Infrastructures
 {
-    public class TemplateEmailService : ITemplateEmailService
+    public class HtmlTemplateEmailService : BaseTemplateEmailService
     {
         private readonly IEmailService _emailService;
-        private readonly ILogger<TemplateEmailService> _logger;
+        private readonly ILogger<HtmlTemplateEmailService> _logger;
         private readonly string _templateBasePath;
 
-        public TemplateEmailService(IEmailService emailService, ILogger<TemplateEmailService> logger, IConfiguration configuration)
+        public HtmlTemplateEmailService(IEmailService emailService,
+                                        ILogger<HtmlTemplateEmailService> logger,
+                                        IWebHostEnvironment environment)
         {
             _emailService = emailService;
             _logger = logger;
 
-            // Get the base path for templates from configuration or use default
-            var contentRoot = configuration["ContentRoot"] ?? Directory.GetCurrentDirectory();
+            // Templates live under the host's content root (e.g. templates/email).
+            var contentRoot = environment?.ContentRootPath ?? Directory.GetCurrentDirectory();
             _templateBasePath = Path.Combine(contentRoot, "templates", "email");
         }
 
-        public async Task SendTemplateEmailAsync(EmailTemplate emailTemplate)
+        public override async Task SendTemplateEmailAsync(TemplateEmail email)
         {
             try
             {
+                ArgumentNullException.ThrowIfNull(email);
+
                 // Load the template
-                var templateContent = await LoadTemplateAsync(emailTemplate.TemplateName);
+                email.Body = await LoadTemplateAsync(email.TemplateName);
 
                 // Process the template with parameters
-                var processedContent = ProcessTemplate(templateContent, emailTemplate.Parameters);
-
-                Email email = Email.Create(emailTemplate.Tos, emailTemplate.Subject, processedContent, true);
+                email.Body = ProcessTemplate(email.Body, email.Parameters);
 
                 // Send the email
                 await _emailService.SendEmailAsync(email);
 
-                _logger.LogInformation("Template email sent successfully. Template: {TemplateName}", emailTemplate.TemplateName);
+                _logger.LogInformation("Template email sent successfully. Template: {TemplateName}, To: {To}", email.TemplateName, string.Join(", ", email.Tos));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending template email. Template: {TemplateName}", emailTemplate.TemplateName);
+                _logger.LogError(ex, "Error sending template email. Template: {TemplateName}, To: {To}", email.TemplateName, string.Join(", ", email.Tos));
                 throw;
             }
         }

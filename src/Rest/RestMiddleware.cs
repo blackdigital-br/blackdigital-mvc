@@ -1,9 +1,14 @@
 using BlackDigital.AspNet.Rest.Trasnforms;
 using BlackDigital.Rest;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using System.Collections;
 
 namespace BlackDigital.AspNet.Rest
 {
@@ -17,12 +22,19 @@ namespace BlackDigital.AspNet.Rest
         private readonly RequestDelegate _next;
         private readonly Dictionary<string, ServiceDescriptor> _services;
         private readonly Dictionary<string, MethodInfo> _methodCache;
+        private readonly ILogger<RestMiddleware> _logger;
+        private readonly IWebHostEnvironment _environment;
 
-        public RestMiddleware(RequestDelegate next, IServiceCollection services)
+        public RestMiddleware(RequestDelegate next,
+                              IServiceCollection services,
+                              ILogger<RestMiddleware> logger,
+                              IWebHostEnvironment environment)
         {
             _next = next;
             _services = new Dictionary<string, ServiceDescriptor>();
             _methodCache = new Dictionary<string, MethodInfo>();
+            _logger = logger;
+            _environment = environment;
 
             BuildServiceRoutes(services);
         }
@@ -161,9 +173,7 @@ namespace BlackDigital.AspNet.Rest
                 var service = context.RequestServices.GetService(serviceDescriptor.ServiceType);
                 if (service == null)
                 {
-                    context.Response.StatusCode = 500;
-                    await context.Response.WriteAsync("Service not found");
-                    return;
+                    throw new Exception($"Service not found to: {serviceDescriptor.ServiceType}");
                 }
 
                 // Preparar parâmetros
@@ -189,8 +199,21 @@ namespace BlackDigital.AspNet.Rest
                 }
                 else
                 {
+                    _logger.LogError(ex, "Error on process Rest Service");
                     context.Response.StatusCode = 500;
-                    await context.Response.WriteAsync("Internal server error");
+                    context.Response.ContentType = "application/json";
+
+                    // Never leak stack traces outside the development environment.
+                    var includeStackTrace = _environment.IsDevelopment();
+                    var error = new RestError()
+                    {
+                        Message = ex.Message,
+                        Stack = includeStackTrace ? ex.StackTrace : null
+                    };
+
+                    var json = JsonCast.ToJson(error);
+
+                    await context.Response.WriteAsync(json);
                 }
             }
         }
@@ -248,17 +271,34 @@ namespace BlackDigital.AspNet.Rest
                 else if (queryAttribute != null)
                 {
                     var queryKey = queryAttribute.Name ?? parameterName;
-                    if (context.Request.Query.ContainsKey(queryKey))
+                    if (IsSimpleType(parameter.ParameterType))
                     {
-                        values[i] = ConvertValue(context.Request.Query[queryKey].ToString(), parameter.ParameterType);
+                        if (context.Request.Query.ContainsKey(queryKey))
+                        {
+                            values[i] = ConvertValue(context.Request.Query[queryKey].ToString(), parameter.ParameterType);
+                        }
+                    }
+                    else
+                    {
+                        var bound = BindFromQuery(context.Request.Query, queryKey, parameter.ParameterType);
+                        if (bound != null)
+                            values[i] = bound;
                     }
                 }
                 else
                 {
-                    // Padrão: query parameter
-                    if (context.Request.Query.ContainsKey(parameterName))
+                    if (IsSimpleType(parameter.ParameterType))
                     {
-                        values[i] = ConvertValue(context.Request.Query[parameterName].ToString(), parameter.ParameterType);
+                        if (context.Request.Query.ContainsKey(parameterName))
+                        {
+                            values[i] = ConvertValue(context.Request.Query[parameterName].ToString(), parameter.ParameterType);
+                        }
+                    }
+                    else
+                    {
+                        var bound = BindFromQuery(context.Request.Query, parameterName, parameter.ParameterType);
+                        if (bound != null)
+                            values[i] = bound;
                     }
                 }
             }
@@ -310,33 +350,43 @@ namespace BlackDigital.AspNet.Rest
             return apiOutput;
         }
 
-        private object ConvertValue(string value, Type targetType)
+        private object? ConvertValue(string? value, Type targetType)
         {
-            if (targetType == typeof(string))
+            if (value == null)
+                return null;
+
+            var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+            if (underlying.IsEnum)
+                return Enum.Parse(underlying, value, ignoreCase: true);
+
+            if (underlying == typeof(string))
                 return value;
 
-            if (targetType == typeof(int) || targetType == typeof(int?))
-                return int.Parse(value);
+            if (underlying == typeof(int))
+                return int.Parse(value, CultureInfo.InvariantCulture);
 
-            if (targetType == typeof(long) || targetType == typeof(long?))
-                return long.Parse(value);
+            if (underlying == typeof(long))
+                return long.Parse(value, CultureInfo.InvariantCulture);
 
-            if (targetType == typeof(bool) || targetType == typeof(bool?))
+            if (underlying == typeof(bool))
                 return bool.Parse(value);
 
-            if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
-                return DateTime.Parse(value);
+            if (underlying == typeof(DateTime))
+                return DateTime.Parse(value, CultureInfo.InvariantCulture);
 
-            if (targetType == typeof(Guid) || targetType == typeof(Guid?))
+            if (underlying == typeof(DateTimeOffset))
+                return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
+
+            if (underlying == typeof(Guid))
                 return Guid.Parse(value);
 
-            // Para tipos customizados como Id da BlackDigital
-            if (targetType.Name == "Id")
+            if (underlying.Name == "Id")
             {
-                return Activator.CreateInstance(targetType, value);
+                return Activator.CreateInstance(underlying, value);
             }
 
-            return Convert.ChangeType(value, targetType);
+            return Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
         }
 
         private async Task<string> ReadRequestBody(HttpContext context)
@@ -375,6 +425,267 @@ namespace BlackDigital.AspNet.Rest
             result = await TransformOutputBodyAsync(actionKey, context, result);
             var json = JsonSerializer.Serialize(result, jsonOptions);
             await context.Response.WriteAsync(json);
+        }
+
+        private bool IsSimpleType(Type type)
+        {
+            var t = Nullable.GetUnderlyingType(type) ?? type;
+            if (t.IsPrimitive)
+                return true;
+            if (t == typeof(string) || t == typeof(decimal) || t == typeof(DateTime) || t == typeof(DateTimeOffset) || t == typeof(Guid))
+                return true;
+            if (t.IsEnum)
+                return true;
+            if (t.Name == "Id")
+                return true;
+            return false;
+        }
+
+        private object BindFromQuery(IQueryCollection query, string prefix, Type targetType)
+        {
+            var hasPrefixed = HasAnyKeyForPrefix(query, prefix);
+            if (!hasPrefixed)
+            {
+                var anyUnprefixed = HasAnyKeyForAnyProperty(query, targetType);
+                if (!anyUnprefixed)
+                    return null;
+                var instanceUnprefixed = Activator.CreateInstance(targetType);
+                BindProperties(query, null, instanceUnprefixed);
+                return instanceUnprefixed;
+            }
+
+            var instance = Activator.CreateInstance(targetType);
+            BindProperties(query, prefix, instance);
+            return instance;
+        }
+
+        private bool HasAnyKeyForPrefix(IQueryCollection query, string prefix)
+        {
+            if (string.IsNullOrWhiteSpace(prefix))
+                return false;
+            foreach (var key in query.Keys)
+            {
+                if (key.Equals(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (key.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (key.StartsWith(prefix + "[", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private bool HasAnyKeyForAnyProperty(IQueryCollection query, Type targetType)
+        {
+            foreach (var prop in targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanWrite)
+                    continue;
+                var name = prop.Name;
+                foreach (var key in query.Keys)
+                {
+                    if (key.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (key.StartsWith(name + ".", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (key.StartsWith(name + "[", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private void BindProperties(IQueryCollection query, string prefix, object instance)
+        {
+            var type = instance.GetType();
+            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanWrite)
+                    continue;
+
+                var propType = prop.PropertyType;
+                var keyBase = string.IsNullOrWhiteSpace(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
+                var keyBaseBracket = string.IsNullOrWhiteSpace(prefix) ? prop.Name : $"{prefix}[{prop.Name}]";
+
+                if (IsSimpleType(propType))
+                {
+                    if (query.ContainsKey(keyBase))
+                    {
+                        var v = query[keyBase].ToString();
+                        var cv = ConvertValue(v, propType);
+                        prop.SetValue(instance, cv);
+                        continue;
+                    }
+                    if (query.ContainsKey(keyBaseBracket))
+                    {
+                        var v = query[keyBaseBracket].ToString();
+                        var cv = ConvertValue(v, propType);
+                        prop.SetValue(instance, cv);
+                        continue;
+                    }
+                    if (string.IsNullOrWhiteSpace(prefix) && query.ContainsKey(prop.Name))
+                    {
+                        var v = query[prop.Name].ToString();
+                        var cv = ConvertValue(v, propType);
+                        prop.SetValue(instance, cv);
+                        continue;
+                    }
+                }
+                else if (IsEnumerableType(propType, out var elemType))
+                {
+                    var values = new List<string>();
+                    if (query.TryGetValue(keyBase, out var sv) && sv.Count > 0)
+                        values.AddRange(sv.ToArray());
+                    else if (query.TryGetValue(keyBaseBracket, out var svb) && svb.Count > 0)
+                        values.AddRange(svb.ToArray());
+                    else
+                    {
+                        var idxValues = new SortedDictionary<int, string>();
+                        foreach (var k in query.Keys)
+                        {
+                            if (k.StartsWith(keyBase + "[", StringComparison.OrdinalIgnoreCase) && k.EndsWith("]"))
+                            {
+                                var inside = k.Substring(keyBase.Length + 1, k.Length - keyBase.Length - 2);
+                                if (int.TryParse(inside, out var index))
+                                {
+                                    idxValues[index] = query[k].ToString();
+                                }
+                            }
+                            if (k.StartsWith(keyBaseBracket + "[", StringComparison.OrdinalIgnoreCase) && k.EndsWith("]"))
+                            {
+                                var inside = k.Substring(keyBaseBracket.Length + 1, k.Length - keyBaseBracket.Length - 2);
+                                if (int.TryParse(inside, out var index))
+                                {
+                                    idxValues[index] = query[k].ToString();
+                                }
+                            }
+                        }
+                        if (idxValues.Count > 0)
+                            values.AddRange(idxValues.Values);
+                    }
+
+                    if (values.Count > 0)
+                    {
+                        if (IsSimpleType(elemType))
+                        {
+                            if (propType.IsArray)
+                            {
+                                var arr = Array.CreateInstance(elemType, values.Count);
+                                for (int i = 0; i < values.Count; i++)
+                                    arr.SetValue(ConvertValue(values[i], elemType), i);
+                                prop.SetValue(instance, arr);
+                            }
+                            else
+                            {
+                                var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elemType));
+                                foreach (var s in values)
+                                    list.Add(ConvertValue(s, elemType));
+                                prop.SetValue(instance, list);
+                            }
+                        }
+                        else
+                        {
+                            var complexList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elemType));
+                            var count = values.Count;
+                            for (int i = 0; i < count; i++)
+                            {
+                                var item = Activator.CreateInstance(elemType);
+                                BindProperties(query, keyBase + $"[{i}]", item);
+                                complexList.Add(item);
+                            }
+                            if (propType.IsArray)
+                            {
+                                var arr = Array.CreateInstance(elemType, complexList.Count);
+                                for (int i = 0; i < complexList.Count; i++)
+                                    arr.SetValue(complexList[i], i);
+                                prop.SetValue(instance, arr);
+                            }
+                            else
+                            {
+                                prop.SetValue(instance, complexList);
+                            }
+                        }
+                        continue;
+                    }
+                    else
+                    {
+                        if (!IsSimpleType(elemType))
+                        {
+                            var idx = 0;
+                            var any = false;
+                            while (true)
+                            {
+                                var nestedPrefix = keyBase + $"[{idx}]";
+                                var nestedPrefixBracket = keyBaseBracket + $"[{idx}]";
+                                if (HasAnyKeyForPrefix(query, nestedPrefix) || HasAnyKeyForPrefix(query, nestedPrefixBracket))
+                                {
+                                    any = true;
+                                    idx++;
+                                }
+                                else break;
+                            }
+                            if (any)
+                            {
+                                var complexList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elemType));
+                                for (int i = 0; i < idx; i++)
+                                {
+                                    var item = Activator.CreateInstance(elemType);
+                                    BindProperties(query, keyBase + $"[{i}]", item);
+                                    complexList.Add(item);
+                                }
+                                if (propType.IsArray)
+                                {
+                                    var arr = Array.CreateInstance(elemType, complexList.Count);
+                                    for (int i = 0; i < complexList.Count; i++)
+                                        arr.SetValue(complexList[i], i);
+                                    prop.SetValue(instance, arr);
+                                }
+                                else
+                                {
+                                    prop.SetValue(instance, complexList);
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (HasAnyKeyForPrefix(query, keyBase) || HasAnyKeyForPrefix(query, keyBaseBracket))
+                    {
+                        var nested = Activator.CreateInstance(propType);
+                        BindProperties(query, keyBase, nested);
+                        prop.SetValue(instance, nested);
+                        continue;
+                    }
+                }
+            }
+        }
+
+        private bool IsEnumerableType(Type type, out Type elementType)
+        {
+            elementType = null;
+            if (type.IsArray)
+            {
+                elementType = type.GetElementType();
+                return true;
+            }
+            if (type.IsGenericType)
+            {
+                var gen = type.GetGenericTypeDefinition();
+                if (gen == typeof(List<>) || gen == typeof(IList<>) || gen == typeof(IEnumerable<>))
+                {
+                    elementType = type.GetGenericArguments()[0];
+                    return true;
+                }
+            }
+            var iface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+            if (iface != null)
+            {
+                elementType = iface.GetGenericArguments()[0];
+                return true;
+            }
+            return false;
         }
     }
 }
