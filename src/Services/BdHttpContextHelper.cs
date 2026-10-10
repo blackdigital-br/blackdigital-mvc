@@ -21,8 +21,9 @@ namespace BlackDigital.AspNet.Services
         /// <see cref="ConnectionInfo.RemoteIpAddress"/> (set correctly by the
         /// <c>ForwardedHeaders</c> middleware), falling back to the first
         /// entry in <c>X-Forwarded-For</c> and then <c>X-Real-IP</c>.
+        /// Returns <c>null</c> when no IP can be determined.
         /// </summary>
-        public static string GetCurrentIpAddress(this IHttpContextAccessor httpContext)
+        public static string? GetCurrentIpAddress(this IHttpContextAccessor httpContext)
         {
             var context = httpContext.HttpContext
                 ?? throw new InvalidOperationException("HttpContext is not available.");
@@ -49,7 +50,7 @@ namespace BlackDigital.AspNet.Services
             if (!string.IsNullOrWhiteSpace(realIp))
                 return realIp;
 
-            return "Unknown";
+            return null;
         }
 
         /// <summary>

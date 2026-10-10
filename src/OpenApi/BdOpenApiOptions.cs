@@ -172,7 +172,20 @@ namespace BlackDigital.AspNet.OpenApi
 
             foreach (var x in IncludedAssemblyPrefixes) clone.IncludedAssemblyPrefixes.Add(x);
             foreach (var x in ExcludedAssemblyPrefixes) clone.ExcludedAssemblyPrefixes.Add(x);
-            foreach (var kv in SecuritySchemes) clone.SecuritySchemes[kv.Key] = kv.Value;
+            // Deep-copy security schemes so mutating the clone's dictionary
+            // entries (e.g. replacing a scheme) never affects the original.
+            foreach (var kv in SecuritySchemes)
+                clone.SecuritySchemes[kv.Key] = new OpenApiSecurityScheme
+                {
+                    Type = kv.Value.Type,
+                    Scheme = kv.Value.Scheme,
+                    BearerFormat = kv.Value.BearerFormat,
+                    Description = kv.Value.Description,
+                    Name = kv.Value.Name,
+                    In = kv.Value.In,
+                    OpenIdConnectUrl = kv.Value.OpenIdConnectUrl,
+                    Flows = kv.Value.Flows
+                };
             foreach (var x in PreferredSecuritySchemes) clone.PreferredSecuritySchemes.Add(x);
 
             return clone;

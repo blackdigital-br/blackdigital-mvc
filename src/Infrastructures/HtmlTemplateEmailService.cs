@@ -84,27 +84,27 @@ namespace BlackDigital.AspNet.Infrastructures
             return await File.ReadAllTextAsync(templatePath);
         }
 
+        // Matches {{ key }} placeholders, capturing the trimmed key name.
+        // Compiled once and reused across all template renders to avoid
+        // recompiling a regex per parameter on every send.
+        private static readonly Regex TemplateVariableRegex =
+            new(@"\{\{\s*([^}]+?)\s*\}\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         private string ProcessTemplate(string templateContent, Dictionary<string, string> parameters)
         {
             if (parameters == null || parameters.Count == 0)
             {
                 // Remove all template variables if no parameters provided
-                return Regex.Replace(templateContent, @"\{\{[^}]+\}\}", string.Empty);
+                return TemplateVariableRegex.Replace(templateContent, string.Empty);
             }
 
-            var processedContent = templateContent;
-
-            // Replace parameters that exist in the dictionary
-            foreach (var parameter in parameters)
+            // Replace placeholders in a single pass, looking up each captured
+            // key in the parameters dictionary. Unmatched keys are removed.
+            return TemplateVariableRegex.Replace(templateContent, match =>
             {
-                var pattern = $@"\{{\{{\s*{Regex.Escape(parameter.Key)}\s*\}}\}}";
-                processedContent = Regex.Replace(processedContent, pattern, parameter.Value ?? string.Empty);
-            }
-
-            // Remove any remaining template variables that weren't provided
-            processedContent = Regex.Replace(processedContent, @"\{\{[^}]+\}\}", string.Empty);
-
-            return processedContent;
+                var key = match.Groups[1].Value;
+                return parameters.TryGetValue(key, out var value) ? (value ?? string.Empty) : string.Empty;
+            });
         }
     }
 }

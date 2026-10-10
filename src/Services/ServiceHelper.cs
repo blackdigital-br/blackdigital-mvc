@@ -2,6 +2,7 @@ using BlackDigital.AspNet.Infrastructures;
 using BlackDigital.AspNet.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace BlackDigital.AspNet.Services
 {
@@ -95,7 +96,20 @@ namespace BlackDigital.AspNet.Services
             var audience = section["Audience"] ?? configuration["Jwt:Audience"];
             var expirationMinutes = int.TryParse(section["ExpirationMinutes"], out var exp) ? exp : 1440;
 
-            services.AddSingleton<ITokenService>(_ => new JwtService(secretKey!, issuer!, audience!, expirationMinutes));
+            // Fail fast at registration time if required JWT settings are missing,
+            // instead of deferring the NullReferenceException to first token use.
+            if (string.IsNullOrWhiteSpace(secretKey))
+                throw new InvalidOperationException("JWT 'SecretKey' is not configured.");
+            if (string.IsNullOrWhiteSpace(issuer))
+                throw new InvalidOperationException("JWT 'Issuer' is not configured.");
+            if (string.IsNullOrWhiteSpace(audience))
+                throw new InvalidOperationException("JWT 'Audience' is not configured.");
+
+            services.AddSingleton<ITokenService>(sp =>
+            {
+                var logger = sp.GetService<ILogger<JwtService>>();
+                return new JwtService(secretKey, issuer, audience, expirationMinutes, logger);
+            });
             return services;
         }
 

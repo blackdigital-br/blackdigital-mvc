@@ -1,5 +1,5 @@
-
-namespace BlackDigital.AspNet.Rest.Trasnforms
+﻿
+namespace BlackDigital.AspNet.Rest.Transforms
 {
     public readonly struct TransformKey : IEquatable<TransformKey>
     {

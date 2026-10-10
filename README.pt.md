@@ -8,7 +8,7 @@
   **Framework moderno para desenvolvimento de APIs REST em .NET**
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![.NET](https://img.shields.io/badge/.NET-6.0%2B-purple.svg)](https://dotnet.microsoft.com/)
+  [![.NET](https://img.shields.io/badge/.NET-10.0%2B-purple.svg)](https://dotnet.microsoft.com/)
 </div>
 
 ## 📋 Sobre o Projeto
@@ -45,7 +45,7 @@ dotnet add package BlackDigital.AspNet
 
 ### Via PackageReference
 ```xml
-<PackageReference Include="BlackDigital.AspNet" Version="1.0.0" />
+<PackageReference Include="BlackDigital.AspNet" Version="25.10.7.16" />
 ```
 
 ## ⚙️ Configuração Básica
@@ -228,8 +228,6 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 ### 📚 Recursos Adicionais
 - [Documentação Completa](doc/)
 - [Exemplos Práticos](example/)
-- [Changelog](CHANGELOG.md)
-- [Roadmap](ROADMAP.md)
 
 ---
 

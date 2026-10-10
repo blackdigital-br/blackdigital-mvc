@@ -128,8 +128,7 @@ namespace BlackDigital.AspNet.OpenApi
 
                 foreach (var method in iface.GetMethods())
                 {
-                    var actionAttr = method.GetCustomAttributes()
-                        .FirstOrDefault(a => a.GetType().Name.EndsWith("ActionAttribute", StringComparison.Ordinal));
+                    var actionAttr = method.GetCustomAttribute<ActionAttribute>();
                     if (actionAttr == null) continue;
 
                     var actionRoute = ActionAttributeHelper.GetRoute(actionAttr).Trim('/');
@@ -169,10 +168,9 @@ namespace BlackDigital.AspNet.OpenApi
                     OpenApiRequestBody? requestBody = null;
                     foreach (var param in method.GetParameters())
                     {
-                        var pAttrs = param.GetCustomAttributes().ToArray();
-                        var isBody = pAttrs.Any(a => a.GetType().Name.EndsWith("BodyAttribute", StringComparison.Ordinal));
-                        var isPath = pAttrs.Any(a => a.GetType().Name.EndsWith("PathAttribute", StringComparison.Ordinal));
-                        var isQuery = pAttrs.Any(a => a.GetType().Name.EndsWith("QueryAttribute", StringComparison.Ordinal));
+                        var isBody = param.GetCustomAttribute<BodyAttribute>() != null;
+                        var isPath = param.GetCustomAttribute<PathAttribute>() != null;
+                        var isQuery = param.GetCustomAttribute<QueryAttribute>() != null;
 
                         if (isBody)
                         {
@@ -219,9 +217,15 @@ namespace BlackDigital.AspNet.OpenApi
 
                     var returnType = method.ReturnType;
                     Type? resultType = null;
-                    if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                        resultType = returnType.GetGenericArguments()[0];
-                    else if (returnType == typeof(Task))
+                    if (returnType.IsGenericType)
+                    {
+                        var genDef = returnType.GetGenericTypeDefinition();
+                        if (genDef == typeof(Task<>) || genDef == typeof(ValueTask<>))
+                            resultType = returnType.GetGenericArguments()[0];
+                        else
+                            resultType = returnType;
+                    }
+                    else if (returnType == typeof(Task) || returnType == typeof(ValueTask))
                         resultType = null;
                     else
                         resultType = returnType;

@@ -22,11 +22,7 @@ namespace BlackDigital.AspNet.Infrastructures
         {
             foreach (var parameter in parameters)
             {
-                if (Parameters.ContainsKey(parameter.Key) && overwrite)
-                {
-                    Parameters[parameter.Key] = parameter.Value;
-                }
-                else if (!Parameters.ContainsKey(parameter.Key))
+                if (overwrite || !Parameters.ContainsKey(parameter.Key))
                     Parameters[parameter.Key] = parameter.Value;
             }
 

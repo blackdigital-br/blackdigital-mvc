@@ -5,10 +5,10 @@ namespace BlackDigital.AspNet.Rest
 {
     public static class RestMiddlewareExtensions
     {
-        private static IServiceCollection? _capturedServices;
-
         /// <summary>
-        /// Adiciona os serviços REST ao container de DI e captura a coleção para uso no middleware
+        /// Registers the REST services into the DI container and builds a
+        /// <see cref="RestRouteRegistry"/> singleton that the middleware
+        /// consumes at request time.
         /// </summary>
         /// <param name="services">Coleção de serviços</param>
         /// <param name="restServiceBuilder">Função para configurar os serviços REST</param>
@@ -18,10 +18,13 @@ namespace BlackDigital.AspNet.Rest
         {
             var builder = new RestServiceBuilder(services);
             builder = restServiceBuilder(builder);
-            
-            // Capturar a coleção de serviços para uso no middleware
-            _capturedServices = services;
-            
+
+            // Build the route table from the full service collection (after the
+            // caller has registered all REST services) and register it as a
+            // singleton so the middleware can resolve it from DI instead of
+            // relying on a captured static reference.
+            services.AddSingleton(sp => new RestRouteRegistry(services));
+
             return services;
         }
 
@@ -32,10 +35,7 @@ namespace BlackDigital.AspNet.Rest
         /// <returns>Application builder</returns>
         public static IApplicationBuilder UseRestMiddleware(this IApplicationBuilder app)
         {
-            if (_capturedServices == null)
-                throw new InvalidOperationException("You must call AddRestServices before UseRestMiddleware");
-
-            return app.UseMiddleware<RestMiddleware>(_capturedServices);
+            return app.UseMiddleware<RestMiddleware>();
         }
     }
 }

@@ -22,8 +22,7 @@ namespace BlackDigital.AspNet.Rest
                        .Filters.Add<ModelStateValidationFilter>();
             }).AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 options.JsonSerializerOptions.Converters.Add(new IdConverter());
                 options.JsonSerializerOptions.Converters.Add(new TimeSpanConverter());
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());

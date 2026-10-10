@@ -8,7 +8,7 @@
   **Modern framework for REST API development in .NET**
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![.NET](https://img.shields.io/badge/.NET-6.0%2B-purple.svg)](https://dotnet.microsoft.com/)
+  [![.NET](https://img.shields.io/badge/.NET-10.0%2B-purple.svg)](https://dotnet.microsoft.com/)
   
   **[🇧🇷 Português](README.pt.md) | 🇺🇸 English**
 </div>
@@ -47,7 +47,7 @@ dotnet add package BlackDigital.AspNet
 
 ### Via PackageReference
 ```xml
-<PackageReference Include="BlackDigital.AspNet" Version="1.0.0" />
+<PackageReference Include="BlackDigital.AspNet" Version="25.10.7.16" />
 ```
 
 ## ⚙️ Basic Configuration
@@ -230,8 +230,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### 📚 Additional Resources
 - [Complete Documentation](doc/)
 - [Practical Examples](example/)
-- [Changelog](CHANGELOG.md)
-- [Roadmap](ROADMAP.md)
 
 ---
 

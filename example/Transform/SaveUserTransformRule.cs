@@ -1,5 +1,5 @@
-using BlackDigital.AspNet.Example.Models;
-using BlackDigital.AspNet.Rest.Trasnforms;
+﻿using BlackDigital.AspNet.Example.Models;
+using BlackDigital.AspNet.Rest.Transforms;
 
 namespace BlackDigital.AspNet.Example.Transform
 {

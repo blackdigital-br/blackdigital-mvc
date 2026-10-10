@@ -1,4 +1,4 @@
-namespace BlackDigital.AspNet.Rest.Trasnforms
+﻿namespace BlackDigital.AspNet.Rest.Transforms
 {
     public abstract class TransformRule : ITransformRule
     {
@@ -36,8 +36,8 @@ namespace BlackDigital.AspNet.Rest.Trasnforms
         object? ITransformRule.Transform(object? value)
             => Transform((T?)value);
 
-        Task<object?> ITransformRule.TransformAsync(object? value)
-            => Task.FromResult((object?)Transform((T?)value));
+        async Task<object?> ITransformRule.TransformAsync(object? value)
+            => await TransformAsync((T?)value).ConfigureAwait(false);
     }
 
     public abstract class TransformRule<TIn, TOut> : ITransformRule<TIn, TOut>
@@ -59,7 +59,7 @@ namespace BlackDigital.AspNet.Rest.Trasnforms
         object? ITransformRule.Transform(object? value)
             => Transform((TIn?)value);
 
-        Task<object?> ITransformRule.TransformAsync(object? value)
-            => Task.FromResult((object?)Transform((TIn?)value));
+        async Task<object?> ITransformRule.TransformAsync(object? value)
+            => await TransformAsync((TIn?)value).ConfigureAwait(false);
     }
 }

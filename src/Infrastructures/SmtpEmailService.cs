@@ -1,12 +1,13 @@
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Net.Mail;
+using MimeKit;
 
 namespace BlackDigital.AspNet.Infrastructures
 {
     /// <summary>
-    /// Implementação do serviço de email usando protocolo SMTP.
+    /// Implementação do serviço de email usando protocolo SMTP via MailKit.
     /// Suporta múltiplos provedores de email (Gmail, Outlook, etc.) com configuração flexível e fallback.
     /// </summary>
     public class SmtpEmailService : BaseEmailService
@@ -42,19 +43,17 @@ namespace BlackDigital.AspNet.Infrastructures
                 string.IsNullOrEmpty(providerName) ? "Default" : providerName);
         }
 
-
         /// <summary>
-        /// Envia um email de forma assíncrona usando protocolo SMTP.
+        /// Envia um email de forma assíncrona usando protocolo SMTP via MailKit.
         /// Suporta configuração específica por provedor com fallback para configuração padrão.
         /// </summary>
         /// <param name="email">Objeto Email contendo destinatários, assunto, corpo e configurações</param>
         /// <returns>Task representando a operação assíncrona de envio</returns>
-        /// <exception cref="Exception">Lançada quando ocorre erro durante o envio do email</exception>
         public override async Task SendEmailAsync(Email email)
         {
             try
             {
-                var provider = email?.Provider ?? Provider;
+                var provider = email.Provider ?? Provider;
 
                 // Determina o prefixo da configuração baseado no provedor
                 var configPrefix = string.IsNullOrEmpty(provider) ? "Email" : $"Email:{provider}";
@@ -67,6 +66,8 @@ namespace BlackDigital.AspNet.Infrastructures
                 var password = GetConfigValue("Password", configPrefix);
                 var fromEmail = GetConfigValue("From", configPrefix);
                 var fromName = GetConfigValue("Name", configPrefix);
+                var sslRaw = GetConfigValue("UseSsl", configPrefix);
+                var startTlsRaw = GetConfigValue("UseStartTls", configPrefix);
 
                 if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(user) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(fromEmail))
                 {
@@ -74,23 +75,36 @@ namespace BlackDigital.AspNet.Infrastructures
                     return;
                 }
 
-                using var client = new SmtpClient(host, port);
-                client.EnableSsl = true;
-                client.Credentials = new NetworkCredential(user, password);
-
-                using var message = new MailMessage();
-                message.From = new MailAddress(fromEmail, fromName);
+                using var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(fromName ?? fromEmail, fromEmail));
 
                 foreach (var to in email.Tos)
                 {
-                    message.To.Add(new MailAddress(to.Key, to.Value));
+                    message.To.Add(new MailboxAddress(to.Value, to.Key));
                 }
-                
-                message.Subject = email.Subject;
-                message.Body = email.Body;
-                message.IsBodyHtml = email.IsHtml;
 
-                await client.SendMailAsync(message);
+                message.Subject = email.Subject;
+
+                var bodyBuilder = new BodyBuilder();
+                if (email.IsHtml)
+                    bodyBuilder.HtmlBody = email.Body;
+                else
+                    bodyBuilder.TextBody = email.Body;
+
+                message.Body = bodyBuilder.ToMessageBody();
+
+                using var client = new SmtpClient();
+
+                // Decide secure socket option: defaults to STARTTLS on port 587,
+                // implicit SSL on 465, and auto-negotiation otherwise. The caller
+                // can override per-provider via UseSsl / UseStartTls flags.
+                var secureSocket = ResolveSecureSocketOption(port, sslRaw, startTlsRaw);
+
+                await client.ConnectAsync(host, port, secureSocket);
+                await client.AuthenticateAsync(user, password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(quit: true);
+
                 _logger.LogInformation("Email sent successfully to with subject: {Subject}", email.Subject);
             }
             catch (Exception ex)
@@ -98,6 +112,29 @@ namespace BlackDigital.AspNet.Infrastructures
                 _logger.LogError(ex, "Failed to send email to with subject: {Subject}", email.Subject);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Resolves the <see cref="SecureSocketOptions"/> to use for the SMTP
+        /// connection. Explicit per-provider flags take precedence; otherwise the
+        /// common defaults (implicit SSL on 465, STARTTLS on 587, auto otherwise)
+        /// are applied.
+        /// </summary>
+        private static SecureSocketOptions ResolveSecureSocketOption(int port, string? useSslRaw, string? useStartTlsRaw)
+        {
+            if (bool.TryParse(useSslRaw, out var useSsl) && useSsl)
+                return SecureSocketOptions.SslOnConnect;
+
+            if (bool.TryParse(useStartTlsRaw, out var useStartTls) && useStartTls)
+                return SecureSocketOptions.StartTls;
+
+            if (port == 465)
+                return SecureSocketOptions.SslOnConnect;
+
+            if (port == 587)
+                return SecureSocketOptions.StartTls;
+
+            return SecureSocketOptions.Auto;
         }
 
         /// <summary>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -12,8 +13,9 @@ namespace BlackDigital.AspNet.Security
         private readonly string _issuer;
         private readonly string _audience;
         private readonly TimeSpan _defaultExpiration;
+        private readonly ILogger<JwtService>? _logger;
 
-        public JwtService(string secretKey, string issuer, string audience, int expirationMinutes = 1440)
+        public JwtService(string secretKey, string issuer, string audience, int expirationMinutes = 1440, ILogger<JwtService>? logger = null)
         {
             if (string.IsNullOrWhiteSpace(secretKey))
                 throw new ArgumentException("Secret key cannot be null or empty.", nameof(secretKey));
@@ -37,6 +39,7 @@ namespace BlackDigital.AspNet.Security
             _issuer = issuer;
             _audience = audience;
             _defaultExpiration = TimeSpan.FromMinutes(expirationMinutes);
+            _logger = logger;
         }
 
         public string GenerateToken(Guid tokenId, IEnumerable<Claim> claims, TimeSpan? expiration = null)
@@ -95,8 +98,9 @@ namespace BlackDigital.AspNet.Security
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
                 return principal;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogDebug(ex, "JWT token validation failed.");
                 return null;
             }
         }
@@ -124,8 +128,9 @@ namespace BlackDigital.AspNet.Security
 
                 return null;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogDebug(ex, "Failed to extract token id from JWT.");
                 return null;
             }
         }
@@ -139,8 +144,9 @@ namespace BlackDigital.AspNet.Security
 
                 return jsonToken.ValidTo <= DateTime.UtcNow;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogDebug(ex, "Failed to determine JWT expiration state; treating as expired.");
                 return true;
             }
         }
@@ -154,8 +160,9 @@ namespace BlackDigital.AspNet.Security
 
                 return jsonToken.ValidTo;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogDebug(ex, "Failed to read JWT expiration; returning MinValue.");
                 return DateTime.MinValue;
             }
         }

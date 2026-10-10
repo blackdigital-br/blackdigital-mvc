@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace BlackDigital.AspNet.Rest
 {
     /// <summary>
-    /// Builder para configurar serviÁos REST
+    /// Builder para configurar servi√ßos REST
     /// </summary>
     public class RestServiceBuilder
     {
@@ -16,10 +16,10 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviÁo REST com sua implementaÁ„o
+        /// Adiciona um servi√ßo REST com sua implementa√ß√£o
         /// </summary>
-        /// <typeparam name="TService">Interface do serviÁo</typeparam>
-        /// <typeparam name="TImplementation">ImplementaÁ„o do serviÁo</typeparam>
+        /// <typeparam name="TService">Interface do servi√ßo</typeparam>
+        /// <typeparam name="TImplementation">Implementa√ß√£o do servi√ßo</typeparam>
         /// <returns>Builder para encadeamento</returns>
         public RestServiceBuilder AddService<TService, TImplementation>()
             where TService : class
@@ -30,10 +30,10 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviÁo REST com lifetime singleton
+        /// Adiciona um servi√ßo REST com lifetime singleton
         /// </summary>
-        /// <typeparam name="TService">Interface do serviÁo</typeparam>
-        /// <typeparam name="TImplementation">ImplementaÁ„o do serviÁo</typeparam>
+        /// <typeparam name="TService">Interface do servi√ßo</typeparam>
+        /// <typeparam name="TImplementation">Implementa√ß√£o do servi√ßo</typeparam>
         /// <returns>Builder para encadeamento</returns>
         public RestServiceBuilder AddSingletonService<TService, TImplementation>()
             where TService : class
@@ -44,10 +44,10 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviÁo REST com lifetime transient
+        /// Adiciona um servi√ßo REST com lifetime transient
         /// </summary>
-        /// <typeparam name="TService">Interface do serviÁo</typeparam>
-        /// <typeparam name="TImplementation">ImplementaÁ„o do serviÁo</typeparam>
+        /// <typeparam name="TService">Interface do servi√ßo</typeparam>
+        /// <typeparam name="TImplementation">Implementa√ß√£o do servi√ßo</typeparam>
         /// <returns>Builder para encadeamento</returns>
         public RestServiceBuilder AddTransientService<TService, TImplementation>()
             where TService : class
@@ -58,10 +58,10 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviÁo REST usando uma factory
+        /// Adiciona um servi√ßo REST usando uma factory
         /// </summary>
-        /// <typeparam name="TService">Interface do serviÁo</typeparam>
-        /// <param name="factory">Factory para criar a inst‚ncia</param>
+        /// <typeparam name="TService">Interface do servi√ßo</typeparam>
+        /// <param name="factory">Factory para criar a inst√¢ncia</param>
         /// <returns>Builder para encadeamento</returns>
         public RestServiceBuilder AddService<TService>(Func<IServiceProvider, TService> factory)
             where TService : class

@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.AspNet.Rest.Trasnforms
+namespace BlackDigital.AspNet.Rest.Transforms
 {
     public class TransformManager
     {
@@ -45,9 +45,12 @@ namespace BlackDigital.AspNet.Rest.Trasnforms
 
         public IList<ITransformRule>? GetRequiredRules(TransformKey key)
         {
+            // A rule registered with TransformDirection.Both must match both
+            // Input and Output queries, so use a bitwise intersection rather
+            // than strict equality against the queried direction.
             var matchingRulesQuery = _rules
                 .Where(kvp => kvp.Key.Key == key.Key &&
-                             kvp.Key.Direction == key.Direction &&
+                             (kvp.Key.Direction & key.Direction) == key.Direction &&
                              string.Compare(kvp.Key.Version, key.Version, StringComparison.Ordinal) > 0);
 
             if (key.Direction == TransformDirection.Input)

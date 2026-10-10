@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace BlackDigital.AspNet.Rest.Trasnforms
+namespace BlackDigital.AspNet.Rest.Transforms
 {
     public static class TransformExtensions
     {

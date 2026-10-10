@@ -18,14 +18,13 @@ namespace BlackDigital.AspNet.Constraint
         /// <param name="values">A dictionary that contains the route values for the URL.</param>
         /// <param name="routeDirection">An object that indicates whether the constraint check is being performed when an incoming request is being handled or when a URL is being generated.</param>
         /// <returns>true if the route value exists and is a string; otherwise, false.</returns>
-        public bool Match(HttpContext httpContext, IRouter route, string routeKey, RouteValueDictionary values, RouteDirection routeDirection)
+        public bool Match(HttpContext? httpContext, IRouter? route, string routeKey, RouteValueDictionary values, RouteDirection routeDirection)
         {
             if (values.TryGetValue(routeKey, out var value))
             {
-                if (value is string id)
+                if (value is string)
                 {
                     return true;
-                    //return id.Length == 24 && id.All(char.IsDigit);
                 }
             }
             return false;

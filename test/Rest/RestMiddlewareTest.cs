@@ -37,7 +37,7 @@ namespace BlackDigital.AspNet.Test.Rest
         }
 
         private RestMiddleware CreateMiddleware(IServiceCollection services)
-            => new RestMiddleware(_mockNext.Object, services, _mockLogger.Object, _mockEnvironment.Object);
+            => new RestMiddleware(_mockNext.Object, new RestRouteRegistry(services), _mockLogger.Object, _mockEnvironment.Object);
 
         private void SetupHttpContextMocks()
         {
@@ -55,18 +55,18 @@ namespace BlackDigital.AspNet.Test.Rest
         }
 
         [Fact]
-        public void Constructor_WhenNextIsNull_ShouldThrowNullReferenceException()
+        public void Constructor_WhenNextIsNull_ShouldThrowArgumentNullException()
         {
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => 
-                new RestMiddleware(null!, _mockServices.Object, _mockLogger.Object, _mockEnvironment.Object));
+            Assert.Throws<ArgumentNullException>(() =>
+                new RestMiddleware(null!, new RestRouteRegistry(new ServiceCollection()), _mockLogger.Object, _mockEnvironment.Object));
         }
 
         [Fact]
-        public void Constructor_WhenServicesIsNull_ShouldThrowNullReferenceException()
+        public void Constructor_WhenRouteRegistryIsNull_ShouldThrowArgumentNullException()
         {
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => 
+            Assert.Throws<ArgumentNullException>(() =>
                 new RestMiddleware(_mockNext.Object, null!, _mockLogger.Object, _mockEnvironment.Object));
         }
 
@@ -136,13 +136,11 @@ namespace BlackDigital.AspNet.Test.Rest
         public void BuildFullRoute_WhenActionRouteIsEmpty_ShouldReturnBaseRoute()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
-            var buildFullRouteMethod = typeof(RestMiddleware)
-                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
+            var buildFullRouteMethod = typeof(RestRouteRegistry)
+                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Static);
 
             // Act
-            var result = buildFullRouteMethod?.Invoke(middleware, new object[] { "/api/test", "" });
+            var result = buildFullRouteMethod?.Invoke(null, new object[] { "/api/test", "" });
 
             // Assert
             Assert.Equal("/api/test", result);
@@ -152,13 +150,11 @@ namespace BlackDigital.AspNet.Test.Rest
         public void BuildFullRoute_WhenActionRouteIsNull_ShouldReturnBaseRoute()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
-            var buildFullRouteMethod = typeof(RestMiddleware)
-                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
+            var buildFullRouteMethod = typeof(RestRouteRegistry)
+                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Static);
 
             // Act
-            var result = buildFullRouteMethod?.Invoke(middleware, new object[] { "/api/test", null! });
+            var result = buildFullRouteMethod?.Invoke(null, new object[] { "/api/test", null! });
 
             // Assert
             Assert.Equal("/api/test", result);
@@ -168,13 +164,11 @@ namespace BlackDigital.AspNet.Test.Rest
         public void BuildFullRoute_WhenActionRouteStartsWithSlash_ShouldCombineCorrectly()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
-            var buildFullRouteMethod = typeof(RestMiddleware)
-                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
+            var buildFullRouteMethod = typeof(RestRouteRegistry)
+                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Static);
 
             // Act
-            var result = buildFullRouteMethod?.Invoke(middleware, new object[] { "/api/test", "/action" });
+            var result = buildFullRouteMethod?.Invoke(null, new object[] { "/api/test", "/action" });
 
             // Assert
             Assert.Equal("/api/test/action", result);
@@ -184,13 +178,11 @@ namespace BlackDigital.AspNet.Test.Rest
         public void BuildFullRoute_WhenActionRouteDoesNotStartWithSlash_ShouldAddSlash()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
-            var buildFullRouteMethod = typeof(RestMiddleware)
-                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Instance);
+            var buildFullRouteMethod = typeof(RestRouteRegistry)
+                .GetMethod("BuildFullRoute", BindingFlags.NonPublic | BindingFlags.Static);
 
             // Act
-            var result = buildFullRouteMethod?.Invoke(middleware, new object[] { "/api/test", "action" });
+            var result = buildFullRouteMethod?.Invoke(null, new object[] { "/api/test", "action" });
 
             // Assert
             Assert.Equal("/api/test/action", result);

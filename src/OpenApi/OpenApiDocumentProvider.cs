@@ -28,8 +28,15 @@ namespace BlackDigital.AspNet.OpenApi
             var pathBase = context.Request.PathBase.Value ?? string.Empty;
             var serverUrl = $"{scheme}://{host}{pathBase}/";
 
+            // Fast path: return the cached document without locking when it
+            // already matches the requested scheme+host. Reference reads of
+            // the cached fields are atomic on .NET.
+            if (_cached != null && string.Equals(_cachedForSchemeHost, serverUrl, StringComparison.Ordinal))
+                return _cached;
+
             lock (_sync)
             {
+                // Re-check inside the lock — another thread may have built it.
                 if (_cached != null && string.Equals(_cachedForSchemeHost, serverUrl, StringComparison.Ordinal))
                     return _cached;
 

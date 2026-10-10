@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.Serialization;
 using Microsoft.OpenApi;
 
@@ -21,10 +21,12 @@ namespace BlackDigital.AspNet.OpenApi
     /// </summary>
     public class BdOpenApiSchemaGenerator
     {
-        // Shared host document passed to OpenApiSchemaReference ctors. The
-        // constructor does not actually mutate it; it only uses it for logical
-        // ownership context when resolving reference IDs at serialisation time.
-        internal static readonly OpenApiDocument HostDoc = new();
+        // Host document passed to OpenApiSchemaReference ctors. The constructor
+        // does not actually mutate it; it only uses it for logical ownership
+        // context when resolving reference IDs at serialisation time. Kept as
+        // an instance field so each generator owns its own context instead of
+        // sharing static state across concurrent document builds.
+        internal readonly OpenApiDocument HostDoc = new();
 
         private readonly Dictionary<Type, OpenApiSchema> _componentByType = new();
         private readonly List<(OpenApiSchema schema, string name)> _components = new();
