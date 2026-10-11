@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Example.Models;
+using BlackDigital.AspNet.Example.Models;
 using BlackDigital.AspNet.Rest.Transforms;
 
 namespace BlackDigital.AspNet.Example.Transform
@@ -14,7 +14,9 @@ namespace BlackDigital.AspNet.Example.Transform
 
         public override SaveUser? Transform(SaveUser? value)
         {
-            value.Email += $".{Name}";
+            if (value != null)
+                value.Email += $".{Name}";
+
             return base.Transform(value);
         }
     }
