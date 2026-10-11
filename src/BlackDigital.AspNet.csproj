@@ -4,11 +4,11 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>Logo128.png</PackageIcon>
 		<Version>25.10.7.16</Version>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
-		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<Title>BlackDigital.AspNet</Title>
 		<Description>BlackDigital ASP.NET Core Extensions</Description>

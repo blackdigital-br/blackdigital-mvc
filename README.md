@@ -3,7 +3,7 @@
 [🇧🇷 Português](README.pt.md) | 🇺🇸 English
 
 <div align="center">
-  <img src="doc/images/Logo128.png" alt="BlackDigital.AspNet Logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/blackdigital-br/blackdigital-mvc/main/doc/images/Logo128.png" alt="BlackDigital.AspNet Logo" width="128" height="128">
   
   **Modern framework for REST API development in .NET**
   
