@@ -193,6 +193,104 @@ builder.Services.AddTransform(config =>
 
 For complete documentation with all examples and technical details, please refer to the full content above.
 
+## Configuration and Usage
+
+### Transform Direction
+
+The `TransformDirection` enum (a `[Flags]` enum) controls whether a rule applies to the request body, the response body, or both:
+
+```csharp
+[Flags]
+public enum TransformDirection
+{
+    Input  = 1,   // Transform the request body (before the service method runs)
+    Output = 2,   // Transform the response body (after the service method runs)
+    Both   = Input | Output   // Apply to both input and output
+}
+```
+
+The `TransformBuilder` exposes dedicated helpers for each direction:
+
+```csharp
+builder.Services.AddTransform(config =>
+{
+    // Input only — request body
+    config.AddInputRule<MyInputRule>("POST:api/users/", "2024-01-01");
+
+    // Output only — response body
+    config.AddOutputRule<MyOutputRule>("GET:api/users/", "2024-01-01");
+
+    // Both input and output
+    config.AddInputAndOutputRule<MyRule>("POST:api/users/", "2024-01-01");
+
+    // Generic overload with explicit direction
+    config.AddRule<MyRule>("POST:api/users/", "2024-01-01", TransformDirection.Input);
+});
+```
+
+### Transform Key
+
+Every rule is registered under a `TransformKey`, a value type composed of three parts:
+
+| Part | Description | Example |
+|------|-------------|---------|
+| `Key` | The action identifier, built as `Method:BaseRoute/ActionRoute` | `POST:api/users/` |
+| `Version` | The version string (typically a date) | `2024-01-01` |
+| `Direction` | `Input`, `Output`, or `Both` | `Input` |
+
+```csharp
+var key = new TransformKey("POST:api/users/", "2024-01-01", TransformDirection.Input);
+```
+
+### How the Version Is Resolved at Request Time
+
+For each request, the REST middleware determines the requested version by checking, in order:
+
+1. **Query string**: `?api-version=2024-01-01`
+2. **Header**: `x-api-version: 2024-01-01`
+3. **Fallback default**: `1970-01-01` (when neither is present)
+
+### Rule Chaining
+
+`TransformManager.GetRequiredRules(key)` returns **all rules whose version is greater than the requested version**, sorted by version:
+
+- **Input direction**: ascending order (oldest → newest), so the request body evolves step-by-step toward the current model.
+- **Output direction**: descending order (newest → oldest), so the response body de-evolves from the current model back to the requested version.
+
+A rule registered with `TransformDirection.Both` matches both `Input` and `Output` queries.
+
+### Rule Interface Hierarchy
+
+Rules implement one of the generic interfaces (or extend the matching abstract base class):
+
+```
+ITransformRule                  (non-generic: object? Transform(object?))
+├── ITransformRule<T>           (same type in/out)
+└── ITransformRule<TIn, TOut>   (different types)
+```
+
+The abstract base classes provide the boilerplate so you only override the typed `Transform` method:
+
+```csharp
+// Same type (e.g. normalise a value)
+public class NormaliseUserRule : TransformRule<User>
+{
+    public override User? Transform(User? value)
+    {
+        if (value != null) value.Email = value.Email.ToLowerInvariant();
+        return value;
+    }
+}
+
+// Different types (e.g. v1 → v2)
+public class UserV1ToV2Rule : TransformRule<UserV1, UserV2>
+{
+    public override UserV2? Transform(UserV1? value) => /* ... */;
+}
+```
+
+Rules are instantiated through the DI container when registered by type (`AddRule<TRule>(...)`), so they can accept constructor dependencies.
+
 ---
 
 **Related Documentation:**

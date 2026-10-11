@@ -1450,6 +1450,104 @@ O sistema de transformação é automaticamente integrado com o RestMiddleware d
 
 Para mais informações sobre o RestMiddleware, consulte a documentação específica do sistema REST.
 
+## Configuração e Uso
+
+### Direção da Transformação
+
+O enum `TransformDirection` (um enum `[Flags]`) controla se uma regra aplica-se ao corpo da requisição, ao corpo da resposta, ou a ambos:
+
+```csharp
+[Flags]
+public enum TransformDirection
+{
+    Input  = 1,   // Transforma o corpo da requisição (antes do método de serviço executar)
+    Output = 2,   // Transforma o corpo da resposta (após o método de serviço executar)
+    Both   = Input | Output   // Aplica a entrada e saída
+}
+```
+
+O `TransformBuilder` expõe helpers dedicados para cada direção:
+
+```csharp
+builder.Services.AddTransform(config =>
+{
+    // Apenas entrada — corpo da requisição
+    config.AddInputRule<MyInputRule>("POST:api/users/", "2024-01-01");
+
+    // Apenas saída — corpo da resposta
+    config.AddOutputRule<MyOutputRule>("GET:api/users/", "2024-01-01");
+
+    // Entrada e saída
+    config.AddInputAndOutputRule<MyRule>("POST:api/users/", "2024-01-01");
+
+    // Overload genérico com direção explícita
+    config.AddRule<MyRule>("POST:api/users/", "2024-01-01", TransformDirection.Input);
+});
+```
+
+### Transform Key
+
+Cada regra é registrada sob uma `TransformKey`, um value type composto por três partes:
+
+| Parte | Descrição | Exemplo |
+|------|-----------|---------|
+| `Key` | O identificador da ação, construído como `Method:BaseRoute/ActionRoute` | `POST:api/users/` |
+| `Version` | A string da versão (tipicamente uma data) | `2024-01-01` |
+| `Direction` | `Input`, `Output` ou `Both` | `Input` |
+
+```csharp
+var key = new TransformKey("POST:api/users/", "2024-01-01", TransformDirection.Input);
+```
+
+### Como a Versão É Resolvida na Requisição
+
+Para cada requisição, o middleware REST determina a versão solicitada verificando, em ordem:
+
+1. **Query string**: `?api-version=2024-01-01`
+2. **Header**: `x-api-version: 2024-01-01`
+3. **Fallback padrão**: `1970-01-01` (quando nenhum dos dois está presente)
+
+### Encadeamento de Regras
+
+`TransformManager.GetRequiredRules(key)` retorna **todas as regras cuja versão é maior que a versão solicitada**, ordenadas por versão:
+
+- **Direção de entrada (Input)**: ordem crescente (mais antiga → mais nova), de modo que o corpo da requisição evolui passo a passo em direção ao modelo atual.
+- **Direção de saída (Output)**: ordem decrescente (mais nova → mais antiga), de modo que o corpo da resposta de-evolui do modelo atual de volta à versão solicitada.
+
+Uma regra registrada com `TransformDirection.Both` corresponde a consultas de `Input` e `Output`.
+
+### Hierarquia de Interfaces das Regras
+
+Regras implementam uma das interfaces genéricas (ou estendem a classe abstrata correspondente):
+
+```
+ITransformRule                  (não genérica: object? Transform(object?))
+├── ITransformRule<T>           (mesmo tipo entrada/saída)
+└── ITransformRule<TIn, TOut>   (tipos diferentes)
+```
+
+As classes base abstratas fornecem o boilerplate para que você só sobrescreva o método `Transform` tipado:
+
+```csharp
+// Mesmo tipo (ex.: normalizar um valor)
+public class NormaliseUserRule : TransformRule<User>
+{
+    public override User? Transform(User? value)
+    {
+        if (value != null) value.Email = value.Email.ToLowerInvariant();
+        return value;
+    }
+}
+
+// Tipos diferentes (ex.: v1 → v2)
+public class UserV1ToV2Rule : TransformRule<UserV1, UserV2>
+{
+    public override UserV2? Transform(UserV1? value) => /* ... */;
+}
+```
+
+Regras são instanciadas através do container de DI quando registradas por tipo (`AddRule<TRule>(...)`), portanto podem receber dependências via construtor.
+
 ---
 
 **Documentação Relacionada:**

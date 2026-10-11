@@ -246,61 +246,63 @@ O sistema REST integra-se nativamente com o sistema de transformação do BlackD
 // Program.cs
 builder.Services.AddTransform(config =>
 {
-    // Transformações para versionamento de usuários
-    config.AddRule<UserV1ToV2>("POST:api/users/", "2024-01-01");
-    config.AddRule<UserV2ToV1>("POST:api/users/", "2024-01-01");
+    // Transformação de entrada: V1 → V2 (clientes antigos enviam V1, serviço espera V2)
+    config.AddInputRule<UserV1ToV2InputRule>("POST:api/users/", "2024-01-01");
     
-    // Transformações específicas por endpoint
-    config.AddInputRule<CreateUserV1ToV2>("POST:api/users/", "2024-01-01");
-    config.AddOutputRule<UserV2ToV1>("GET:api/users/", "2024-01-01");
+    // Transformação de saída: V2 → V1 (serviço retorna V2, clientes antigos esperam V1)
+    config.AddOutputRule<UserV2ToV1OutputRule>("GET:api/users/", "2024-01-01");
+    config.AddOutputRule<UserV2ToV1OutputRule>("POST:api/users/", "2024-01-01");
 });
 ```
 
+A **chave** da regra é construída automaticamente a partir de `Method:BaseRoute/ActionRoute` da ação (ex: `POST:api/users/`). A **versão** é selecionada por requisição a partir de:
+1. Query string `?api-version=2024-01-01`
+2. Header `x-api-version: 2024-01-01`
+3. Fallback padrão: `1970-01-01`
+
 ### Definindo Regras de Transformação
+
+Regras estendem `TransformRule<TIn, TOut>`:
 
 ```csharp
 // Transformação de entrada: V1 → V2
-public class UserV1ToV2 : ITransformRule
+public class UserV1ToV2InputRule : TransformRule<UserV1, UserV2>
 {
-    public string Apply(string input, TransformContext context)
+    public override UserV2? Transform(UserV1? userV1)
     {
-        var userV1 = JsonSerializer.Deserialize<UserV1>(input);
-        var userV2 = new UserV2
+        if (userV1 == null) return null;
+        return new UserV2
         {
             Id = userV1.Id,
-            FullName = userV1.Name, // V1: Name → V2: FullName
+            FullName = $"{userV1.FirstName} {userV1.LastName}",  // V1: separado → V2: combinado
             Email = userV1.Email,
-            Profile = new UserProfile // Novo campo em V2
-            {
-                Bio = "",
-                Avatar = ""
-            }
+            Profile = new UserProfile { Bio = "", Avatar = "" }   // Novo campo em V2
         };
-        return JsonSerializer.Serialize(userV2);
     }
 }
 
 // Transformação de saída: V2 → V1
-public class UserV2ToV1 : ITransformRule
+public class UserV2ToV1OutputRule : TransformRule<UserV2, UserV1>
 {
-    public string Apply(string input, TransformContext context)
+    public override UserV1? Transform(UserV2? userV2)
     {
-        var userV2 = JsonSerializer.Deserialize<UserV2>(input);
-        var userV1 = new UserV1
+        if (userV2 == null) return null;
+        var parts = userV2.FullName.Split(' ', 2);
+        return new UserV1
         {
             Id = userV2.Id,
-            Name = userV2.FullName, // V2: FullName → V1: Name
+            FirstName = parts[0],
+            LastName = parts.Length > 1 ? parts[1] : "",
             Email = userV2.Email
             // Profile é omitido na V1
         };
-        return JsonSerializer.Serialize(userV1);
     }
 }
 ```
 
 ### Versionamento Automático de API
 
-O sistema suporta múltiplas versões da mesma API automaticamente:
+O sistema suporta múltiplas versões da mesma API automaticamente. Registre ambas as versões do serviço e deixe as transformações cuidarem da conversão:
 
 ```csharp
 // Serviço V1
@@ -327,18 +329,21 @@ builder.Services.AddRestServices(config =>
 });
 ```
 
-### Transformação Automática via Headers
+### Transformação Automática via Query String ou Header
 
-O sistema pode aplicar transformações baseadas em cabeçalhos HTTP:
+O cliente especifica a versão desejada da API e o sistema aplica as transformações apropriadas:
 
 ```csharp
-// Cliente especifica versão via header
-// Accept: application/json; version=1.0
-// → Sistema aplica transformação V2→V1 na resposta
+// Cliente especifica versão via query string
+// GET /api/users?api-version=2020-01-01
+// → Sistema aplica transformações de saída para versões mais novas que 2020-01-01
 
-// api-version: 2024-01-01
-// → Sistema aplica transformações baseadas na data
+// Cliente especifica versão via header
+// x-api-version: 2020-01-01
+// → Mesmo comportamento da query string
 ```
+
+Quando nenhuma versão é fornecida, o sistema usa `1970-01-01` como padrão, significando que todas as transformações registradas (com versões mais novas) são aplicadas.
 
 ### Exemplo Prático: Evolução de API
 
@@ -520,12 +525,13 @@ O sistema é otimizado para performance:
 
 ### Arquitetura do Sistema
 
-O sistema REST é composto por quatro componentes principais:
+O sistema REST é composto por cinco componentes principais:
 
 1. **RestMiddleware**: Middleware principal que intercepta e processa requisições
-2. **RestHelper**: Métodos auxiliares para configuração do MVC
-3. **RestServiceBuilder**: Builder para configuração e registro de serviços
-4. **RestMiddlewareExtensions**: Extensões para integração com o container DI
+2. **RestRouteRegistry**: Tabela de rotas pré-construída (singleton) que mapeia métodos HTTP para métodos de serviço
+3. **RestHelper**: Métodos auxiliares para configuração do MVC
+4. **RestServiceBuilder**: Builder para configuração e registro de serviços
+5. **RestMiddlewareExtensions**: Extensões para integração com o container DI (`AddRestServices`, `UseRestMiddleware`)
 
 #### RestMiddleware
 
@@ -575,45 +581,77 @@ Task<User> GetUserAsync([Path] int id);
 
 ```csharp
 using BlackDigital.AspNet.Rest;
+using BlackDigital.AspNet.Rest.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Registrar serviços REST
-builder.Services.AddRest(config =>
+// 1. Registrar serviços REST (interface + implementação)
+builder.Services.AddRestServices(rest =>
 {
-    config.AddService<IUserService, UserService>();
-    config.AddService<IProductService, ProductService>();
-    config.EnableTransformations(); // Opcional
+    rest.AddService<IUserService, UserService>();
+    rest.AddService<IProductService, ProductService>();
 });
 
-// 2. Configurar transformações (se necessário)
+// 2. Configurar opções do MVC (model binders, route constraints, filtro de validação)
+builder.Services.AddRestMvcOptions();
+
+// 3. Configurar transformações (se necessário) — separado do registro REST
 builder.Services.AddTransform(config =>
 {
-    config.AddRule<UserV1ToV2>();
-    config.AddRule<UserV2ToV1>();
+    config.AddInputRule<UserV1ToV2>("POST:api/users/", "2024-01-01");
+    config.AddOutputRule<UserV2ToV1>("GET:api/users/", "2024-01-01");
 });
 
 var app = builder.Build();
 
-// 3. Configurar pipeline
-app.UseTransform(); // Se usando transformações
-app.UseRest();
+// 4. Configurar pipeline
+app.UseRouting();
+app.UseRestMiddleware();  // Middleware REST — deve vir antes de UseAuthorization
 app.UseAuthorization();
+app.MapControllers();     // Controllers tradicionais continuam funcionando
 
 app.Run();
+```
+
+#### Lifetimes de Serviço
+
+O `RestServiceBuilder` oferece três lifetimes e um overload com factory:
+
+```csharp
+builder.Services.AddRestServices(rest =>
+{
+    rest.AddService<IUserService, UserService>();                 // Scoped (padrão)
+    rest.AddSingletonService<ICacheService, CacheService>();      // Singleton
+    rest.AddTransientService<IHelperService, HelperService>();    // Transient
+    rest.AddService<ICustomService>(sp => new CustomService(sp)); // Factory (Scoped)
+});
 ```
 
 #### Funcionalidades Avançadas
 
 **Autorização Flexível:**
+
+A autorização é controlada pela flag booleana `authorize`, que pode ser definida no nível da **ação** ou herdada do nível do **serviço** (`[Service]`). Quando qualquer uma for `true`, o middleware verifica `context.User.Identity.IsAuthenticated` e retorna `401 Unauthorized` se o usuário não estiver autenticado.
+
 ```csharp
-[Action(method: RestMethod.Get, authorize: false)]     // Público
-[Action(method: RestMethod.Post, authorize: true)]     // Requer auth
-[Action(method: RestMethod.Delete, roles: "Admin")]    // Requer role
-[Action(method: RestMethod.Put, policy: "EditUser")]   // Requer policy
+[Service("api/admin")]
+public interface IAdminService
+{
+    // Público — não requer autorização
+    [Action("health", method: RestMethod.Get, authorize: false)]
+    Task<HealthStatus> GetHealthAsync();
+
+    // Requer autorização (authorize padrão é true no nível da ação,
+    // ou herda true de [Service] quando a ação omite)
+    [Action("users", method: RestMethod.Get, authorize: true)]
+    Task<List<User>> GetAllUsersAsync();
+}
 ```
 
 **Binding Complexo:**
+
+Todos os quatro atributos de binding são suportados, além de binding automático para tipos simples da query string quando nenhum atributo está presente:
+
 ```csharp
 [Action("search/{category}", method: RestMethod.Post)]
 Task<List<Product>> SearchAsync(
@@ -625,21 +663,68 @@ Task<List<Product>> SearchAsync(
 );
 ```
 
+**CancellationToken:**
+
+Adicione um parâmetro `CancellationToken` a qualquer método de ação — o middleware o vincula automaticamente a `context.RequestAborted` para que operações longas respeitem a desconexão do cliente:
+
+```csharp
+[Action("export", method: RestMethod.Get)]
+Task<Stream> ExportAsync(CancellationToken cancellationToken);
+```
+
+**Valores Padrão de Parâmetros:**
+
+Parâmetros com valores padrão são suportados. Quando uma fonte de binding não fornece um valor, o padrão declarado é usado:
+
+```csharp
+[Action("search", method: RestMethod.Get)]
+Task<List<User>> SearchAsync(
+    [Query] string filter = "",
+    [Query] int page = 1,
+    [Query] int size = 20
+);
+```
+
 **Tratamento de Erros:**
+
+Lance `BusinessException` (do `BlackDigital`) para retornar um código de status HTTP específico. O middleware mapeia diretamente:
+
 ```csharp
 public async Task<User> GetUserAsync(int id)
 {
     var user = await _repository.GetByIdAsync(id);
     
     if (user == null)
-        BusinessException.ThrowNotFound("Usuário não encontrado");
+        BusinessException.ThrowNotFound("Usuário não encontrado");   // 404
     
     if (!user.IsActive)
-        BusinessException.ThrowForbidden("Usuário inativo");
+        BusinessException.ThrowForbidden("Usuário inativo");         // 403
     
     return user;
 }
 ```
+
+Exceções não tratadas retornam `500 Internal Server Error` com um payload `RestError` (`{ "message", "stack" }`). O campo `stack` só é preenchido no ambiente de Development.
+
+#### Suporte Nativo ao Tipo `Id`
+
+O framework acompanha um model binder e route constraint customizados para `BlackDigital.Model.Id`, registrados automaticamente por `AddRestMvcOptions()`:
+
+```csharp
+[Service("api/users")]
+public interface IUserService
+{
+    // O segmento de rota {id} é vinculado a BlackDigital.Model.Id
+    [Action("{id}", method: RestMethod.Get)]
+    Task<User> GetUserAsync([Path] Id id);
+}
+```
+
+`AddRestMvcOptions()` também:
+- Insere `IdModelBinderProvider` no início dos providers de model binder do MVC
+- Registra a route constraint `id` (`options.ConstraintMap.Add("id", typeof(IdConstraint))`)
+- Adiciona `IdConverter`, `TimeSpanConverter` e `JsonStringEnumConverter` às opções do serializador JSON
+- Registra `ModelStateValidationFilter`, que retorna `400 Bad Request` com `ErrorApiResponse` quando a validação do modelo falha
 
 ### Melhores Práticas
 

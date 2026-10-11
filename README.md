@@ -9,8 +9,6 @@
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
   [![.NET](https://img.shields.io/badge/.NET-10.0%2B-purple.svg)](https://dotnet.microsoft.com/)
-  
-  **[🇧🇷 Português](README.pt.md) | 🇺🇸 English**
 </div>
 
 ## 📋 About the Project
@@ -19,8 +17,11 @@
 
 ### 🚀 Key Features
 
-- **🔧 REST System**: Create APIs without controllers using only attributes
+- **🔧 REST System**: Create APIs without controllers using service interfaces and attributes
 - **🔄 Transformation System**: API evolution maintaining backward compatibility
+- **📖 OpenAPI + Scalar**: Automatic API documentation generation (no Swashbuckle)
+- **🔐 Security**: JWT token service and Argon2id password hashing
+- **📧 Email Infrastructure**: SMTP email service with HTML template support
 - **⚡ High Performance**: Optimized middleware for maximum efficiency
 - **🧪 Testability**: Architecture that facilitates unit and integration testing
 - **📦 Modular**: Independent and reusable components
@@ -55,39 +56,76 @@ dotnet add package BlackDigital.AspNet
 ### 1. Configure in Program.cs
 
 ```csharp
-using BlackDigital.AspNet;
+using BlackDigital.AspNet.OpenApi;
+using BlackDigital.AspNet.Rest;
+using BlackDigital.AspNet.Rest.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add BlackDigital.AspNet services
-builder.Services.AddBlackDigitalServices();
+// Register REST services (interface + implementation)
+builder.Services.AddRestServices(rest =>
+{
+    rest.AddService<IUserService, UserService>();
+});
+
+// Configure MVC options (model binders, route constraints, validation filter)
+builder.Services.AddRestMvcOptions();
+
+// Configure the transformation system (optional)
+builder.Services.AddTransform(transform =>
+{
+    transform.AddInputRule<OldUserToUserRule>("POST:api/users/", "2020-01-01");
+});
+
+// Configure OpenAPI + Scalar documentation (optional)
+builder.Services.AddOpenApi(options =>
+{
+    options.Title = "My API";
+    options.Version = "v1";
+    options.Enabled = builder.Environment.IsDevelopment() || builder.Environment.IsStaging();
+});
 
 var app = builder.Build();
 
-// Configure REST middleware
-app.UseBlackDigitalRest();
-
-// Configure transformation system (optional)
-app.UseBlackDigitalTransforms();
+app.UseRouting();
+app.UseRestMiddleware();   // REST middleware (before UseAuthorization)
+app.UseAuthorization();
+app.MapControllers();      // Traditional controllers keep working
+app.MapOpenApi();          // OpenAPI JSON + Scalar UI
 
 app.Run();
 ```
 
 ### 2. Create your first service
 
+Services are defined as **interfaces** decorated with `[Service]`, with methods decorated with `[Action]`:
+
 ```csharp
+using BlackDigital.Rest;
+
 [Service("api/users")]
-public class UserService
+public interface IUserService
 {
-    [Action("GET")]
-    public async Task<IEnumerable<User>> GetUsers()
+    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    Task<User> GetUserAsync([Path] int id);
+
+    [Action(method: RestMethod.Post, authorize: true)]
+    Task<User> CreateUserAsync([Body] CreateUserRequest request);
+}
+```
+
+Implement the interface as a regular class (no controller base class required):
+
+```csharp
+public class UserService : IUserService
+{
+    public async Task<User> GetUserAsync(int id)
     {
         // Your logic here
-        return await GetAllUsersAsync();
+        return await GetUserByIdAsync(id);
     }
 
-    [Action("POST")]
-    public async Task<User> CreateUser([FromBody] CreateUserRequest request)
+    public async Task<User> CreateUserAsync(CreateUserRequest request)
     {
         // Your logic here
         return await CreateUserAsync(request);
@@ -99,34 +137,56 @@ public class UserService
 
 ### 🔧 REST System
 Create complete REST APIs without traditional controllers:
-- **Simple Attributes**: `[Service]` and `[Action]` define routes automatically
-- **Automatic Binding**: Parameters bound automatically
-- **Full Support**: GET, POST, PUT, DELETE, PATCH
-- **Async/Await**: Native support for asynchronous operations
+- **Interface-based**: `[Service]` and `[Action]` attributes define routes automatically
+- **Automatic Binding**: `[Path]`, `[Body]`, `[Query]`, `[Header]` parameters bound automatically
+- **Built-in `Id` support**: Custom model binder and route constraint for `BlackDigital.Model.Id`
+- **CancellationToken**: Request abortion token is bound automatically
+- **Authorization**: Per-action or per-service `authorize` flag
+- **Business exceptions**: `BusinessException` maps directly to HTTP status codes
+- **Full Support**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+- **Async/Await**: Native support for `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>`
 
 ### 🔄 Transformation System
 Evolve your APIs maintaining compatibility:
-- **Automatic Versioning**: Transparent transformations between versions
-- **Full Compatibility**: Old clients continue working
-- **Flexible Rules**: Define custom transformations
-- **Performance**: Zero overhead for current versions
+- **Input and Output rules**: Transform request body and response independently
+- **Date-based versioning**: Version selected via `api-version` query string or `x-api-version` header
+- **Automatic chaining**: Rules are applied sequentially by version order
+- **DI integration**: Rule types are instantiated through the DI container
 
-### 🔗 Perfect Integration
-Systems work together:
-- **REST + Transformation**: APIs that evolve without breaking
-- **Unified Configuration**: Simple and consistent setup
-- **Monitoring**: Integrated logs and metrics
+### 📖 OpenAPI + Scalar
+Automatic, Swashbuckle-free documentation:
+- **Pure Microsoft.OpenApi**: Built directly with `Microsoft.OpenApi` 3.x
+- **Automatic discovery**: Scans assemblies for `[Service]` interfaces
+- **Scalar UI**: Interactive API documentation via `Scalar.AspNetCore`
+- **Bearer JWT**: Pre-configured security scheme (overridable)
+- **Customizable**: Title, version, contact, license, server URL, assembly filters
+
+### 🔐 Security
+Ready-to-use security building blocks:
+- **JWT Service**: Generate, validate, and inspect JWT tokens
+- **Argon2id**: Password hashing with configurable memory/iterations/parallelism
+
+### 📧 Email Infrastructure
+Send transactional emails with ease:
+- **SMTP via MailKit**: Multi-provider support with fallback configuration
+- **HTML Templates**: Load templates from `templates/email/` with `{{ key }}` placeholders
+- **Fluent API**: `Email.Create().To(...).WithSubject(...).WithBody(...)`
 
 ## 📚 Detailed Documentation
 
 ### 📖 Complete Guides
 - **[REST System](doc/rest-system.md)** - Complete REST system guide
 - **[Transformation System](doc/transform-system.md)** - Complete transformation system guide
+- **[OpenAPI + Scalar](doc/openapi.md)** - API documentation generation guide
+- **[Security](doc/security.md)** - JWT and password hashing guide
+- **[Email](doc/email.md)** - SMTP and template email guide
 
 ### 🎯 Quick Navigation
-- [How to create REST services](doc/rest-system.md#how-to-use)
+- [How to create REST services](doc/rest-system.md#how-to-use-practical-implementation)
 - [Transformation configuration](doc/transform-system.md#configuration-and-usage)
-- [Practical examples](doc/rest-system.md#practical-examples)
+- [OpenAPI configuration](doc/openapi.md#configuration)
+- [JWT service configuration](doc/security.md#jwt-token-service)
+- [Email service configuration](doc/email.md#configuration)
 - [Best practices](doc/rest-system.md#best-practices)
 
 ## 🚀 Quick Examples
@@ -134,34 +194,31 @@ Systems work together:
 ### Simple REST Service
 ```csharp
 [Service("api/products")]
-public class ProductService
+public interface IProductService
 {
-    [Action("GET")]
-    public async Task<IEnumerable<Product>> GetProducts()
-        => await _repository.GetAllAsync();
+    [Action(method: RestMethod.Get, authorize: false)]
+    Task<IEnumerable<Product>> GetProductsAsync();
 
-    [Action("GET", "{id}")]
-    public async Task<Product> GetProduct(int id)
-        => await _repository.GetByIdAsync(id);
+    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    Task<Product> GetProductAsync([Path] int id);
 
-    [Action("POST")]
-    public async Task<Product> CreateProduct([FromBody] Product product)
-        => await _repository.CreateAsync(product);
+    [Action(method: RestMethod.Post)]
+    Task<Product> CreateProductAsync([Body] Product product);
 }
 ```
 
 ### Basic Transformation
 ```csharp
-public class UserTransformRule : ITransformRule<OldUser, NewUser>
+public class OldUserToUserRule : TransformRule<OldUser, User>
 {
-    public NewUser Transform(OldUser source)
+    public override User? Transform(OldUser? source)
     {
-        return new NewUser
+        if (source == null) return null;
+        return new User
         {
             Id = source.Id,
             FullName = $"{source.FirstName} {source.LastName}",
-            Email = source.Email,
-            CreatedAt = source.Created
+            Email = source.Email
         };
     }
 }
@@ -170,26 +227,32 @@ public class UserTransformRule : ITransformRule<OldUser, NewUser>
 ### 📁 Complete Example Project
 Explore the [example project](example/) that demonstrates:
 - Complete configuration
-- REST services
-- Transformations
-- Entity Framework integration
-- Unit tests
+- REST services (interface-based)
+- Input and output transformations
+- OpenAPI + Scalar setup
 
 ## 📁 Project Structure
 
 ```
 BlackDigital.AspNet/
 ├── 📁 src/                    # Main source code
-│   ├── 📁 Rest/              # REST system
-│   ├── 📁 Binder/            # Custom model binders
-│   ├── 📁 Constraint/        # Route constraints
-│   ├── 📁 Services/          # Auxiliary services
-│   └── 📁 Infrastructures/   # Infrastructure
+│   ├── 📁 Rest/              # REST system (middleware, routing, binding)
+│   │   └── 📁 Transforms/    # Transformation engine
+│   ├── 📁 OpenApi/           # OpenAPI document builder + Scalar integration
+│   ├── 📁 Security/          # JWT and Argon2id services
+│   ├── 📁 Infrastructures/   # Email services (SMTP + templates)
+│   ├── 📁 Binder/            # Custom model binders (Id)
+│   ├── 📁 Constraint/        # Route constraints (id)
+│   ├── 📁 Filters/           # MVC filters (ModelState validation)
+│   └── 📁 Services/          # DI helpers and HTTP context utilities
 ├── 📁 example/               # Example project
 ├── 📁 test/                  # Unit tests
 ├── 📁 doc/                   # Documentation
 │   ├── 📄 rest-system.md     # REST system documentation
 │   ├── 📄 transform-system.md # Transformation documentation
+│   ├── 📄 openapi.md         # OpenAPI + Scalar documentation
+│   ├── 📄 security.md        # Security (JWT / Argon2id) documentation
+│   ├── 📄 email.md           # Email infrastructure documentation
 │   └── 📁 images/            # Documentation images
 └── 📄 README.md              # This file
 ```

@@ -106,10 +106,20 @@ namespace BlackDigital.AspNet.OpenApi
             var tagsByInterface = new Dictionary<Type, (OpenApiTag tag, OpenApiTagReference reference)>();
             foreach (var iface in serviceInterfaces)
             {
+                var serviceAttr = iface.GetCustomAttribute<ServiceAttribute>()!;
+
+                var tagName = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceName())
+                    ? serviceAttr.GetServiceName()
+                    : FriendlyGroupName(iface);
+
+                var tagDescription = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceDescription())
+                    ? serviceAttr.GetServiceDescription()
+                    : $"Endpoints exposed by {iface.FullName ?? iface.Name}.";
+
                 var tag = new OpenApiTag
                 {
-                    Name = FriendlyGroupName(iface),
-                    Description = $"Endpoints exposed by {iface.FullName ?? iface.Name}."
+                    Name = tagName,
+                    Description = tagDescription
                 };
                 var reference = new OpenApiTagReference(tag.Name, document);
                 tagsByInterface[iface] = (tag, reference);
