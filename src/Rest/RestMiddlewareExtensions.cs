@@ -3,6 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BlackDigital.AspNet.Rest
 {
+    /// <summary>
+    /// Extension methods for registering REST services into the dependency
+    /// injection container and adding the <see cref="RestMiddleware"/> to the
+    /// request pipeline.
+    /// </summary>
     public static class RestMiddlewareExtensions
     {
         /// <summary>
@@ -10,9 +15,9 @@ namespace BlackDigital.AspNet.Rest
         /// <see cref="RestRouteRegistry"/> singleton that the middleware
         /// consumes at request time.
         /// </summary>
-        /// <param name="services">Coleção de serviços</param>
-        /// <param name="restServiceBuilder">Função para configurar os serviços REST</param>
-        /// <returns>Coleção de serviços</returns>
+        /// <param name="services">The service collection to register into.</param>
+        /// <param name="restServiceBuilder">A delegate that configures the REST services.</param>
+        /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddRestServices(this IServiceCollection services,
                                                         Func<RestServiceBuilder, RestServiceBuilder> restServiceBuilder)
         {
@@ -29,10 +34,10 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona o middleware REST ao pipeline de requisições
+        /// Adds the <see cref="RestMiddleware"/> to the request pipeline.
         /// </summary>
-        /// <param name="app">Application builder</param>
-        /// <returns>Application builder</returns>
+        /// <param name="app">The application builder.</param>
+        /// <returns>The application builder for chaining.</returns>
         public static IApplicationBuilder UseRestMiddleware(this IApplicationBuilder app)
         {
             return app.UseMiddleware<RestMiddleware>();

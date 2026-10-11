@@ -21,8 +21,6 @@ test/
 │   └── IdModelBinderProviderTest.cs
 ├── Constraint/
 │   └── IdConstraintTest.cs
-├── Infrastructures/
-│   └── SmtpEmailServiceTest.cs
 ├── Rest/
 │   ├── RestHelperTest.cs
 │   ├── RestMiddlewareExtensionsTest.cs
@@ -59,7 +57,7 @@ public void Constructor_WhenSecretKeyTooShort_ShouldThrowArgumentException()
 
     // Act & Assert
     Assert.Throws<ArgumentException>(() =>
-        new JwtService(shortKey, "issuer", "audience"));
+        new JwtTokenService(shortKey, "issuer", "audience"));
 }
 ```
 
@@ -112,13 +110,12 @@ These modules have **zero or incomplete** test coverage. Adding tests here is hi
 - `ServiceAttributeHelper` / `ActionAttributeHelper` — route/method/authorize resolution
 
 ### Security (no tests at all)
-- `JwtService` — secret key length validation, token generation, validation, refresh token randomness, `jti` extraction, expiry checks
+- `JwtTokenService` (from `BlackDigital.Domain`) — secret key length validation, token generation, validation, refresh token randomness, `jti` extraction, expiry checks
 - `Argon2idPasswordHashService` — parameter validation, hash format, round-trip verification, wrong-password rejection, malformed hash handling
 
 ### Infrastructures (partial)
-- `Email` / `TemplateEmail` — fluent builder API
-- `HtmlTemplateEmailService` — template loading, placeholder replacement, path traversal rejection
-- `BaseEmailService` / `BaseTemplateEmailService`
+- `Email` / `TemplateEmail` (from `BlackDigital.Domain`) — fluent builder API
+- `HtmlTemplateEmailService` (from `BlackDigital.Domain`) — template loading, placeholder replacement, path traversal rejection
 - `InfrastructureHelper` — DI registration
 
 ### Services (no tests)

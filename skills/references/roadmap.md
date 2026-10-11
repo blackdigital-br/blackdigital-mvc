@@ -10,8 +10,10 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 - Add tests for the entire `Security/` module (currently zero tests)
 - Add tests for `Services/ServiceHelper.cs` and `Services/BdHttpContextHelper.cs`
 - Add tests for `Filters/ModelStateValidationFilter.cs`
-- Add tests for `Infrastructures/Email.cs`, `TemplateEmail.cs`, `HtmlTemplateEmailService.cs`, `BaseEmailService.cs`, `BaseTemplateEmailService.cs`
+- Add tests for `Infrastructures/InfrastructureHelper.cs`
 - Add tests for `OpenApi/ServiceAttributeHelper.cs` and `ActionAttributeHelper.cs`
+
+> `Email`, `TemplateEmail`, `HtmlTemplateEmailService`, `JwtTokenService`, and their tests now live in the `BlackDigital.Domain` repository.
 
 ## XML documentation debt
 
@@ -20,8 +22,10 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 - Audit all public members for missing `<summary>`, `<param>`, `<returns>`, `<exception>`
 - `RestMiddleware.cs` has only 1 `<summary>` — needs comprehensive docs
 - `RestRouteRegistry.cs` — needs method-level docs
-- `Security/JwtService.cs` and `Argon2idPasswordHashService.cs` — document all public methods and thrown exceptions
+- `Security/Argon2idPasswordHashService.cs` — document all public methods and thrown exceptions
 - `OpenApi/` files — document options, builder methods, schema generation behavior
+
+> `JwtTokenService`, `ITokenService`, `IPasswordHashService`, and all email types now live in the `BlackDigital.Domain` repository.
 
 ## OpenAPI improvements
 
@@ -55,7 +59,7 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 
 ## Security improvements
 
-- Add refresh-token rotation support in `JwtService`
+- Add refresh-token rotation support in `JwtTokenService` (in `BlackDigital.Domain`)
 - Add token blacklist / revocation support
 - Support asymmetric signing (RSA/ECDSA) in addition to HMAC
 - Add a `[RequireRole]` / `[RequirePolicy]` attribute on `[Action]`

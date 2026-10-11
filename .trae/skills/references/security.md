@@ -2,16 +2,16 @@
 
 ## JWT token service
 
-`JwtService` implements `ITokenService` and provides JWT generation, validation, and inspection.
+`JwtTokenService` (from the `BlackDigital.Domain` package) implements `ITokenService` and provides JWT generation, validation, and inspection. The `ITokenService` interface and `JwtTokenService` implementation live in `BlackDigital.Domain.Security`; this library only provides DI registration helpers.
 
 ### Registration
 
 ```csharp
 // From configuration (reads the "Jwt" section)
-builder.Services.AddJwtService(builder.Configuration);
+builder.Services.AddJwtTokenService(builder.Configuration);
 
 // Or with explicit settings
-builder.Services.AddJwtService(secretKey, issuer, audience, expirationMinutes: 1440);
+builder.Services.AddJwtTokenService(secretKey, issuer, audience, expirationMinutes: 1440);
 ```
 
 The `IConfiguration` overload reads:
@@ -113,9 +113,8 @@ For the client IP to be trustworthy behind a reverse proxy, the host must regist
 
 ## Source files
 
-- `src/Security/JwtService.cs`
-- `src/Security/ITokenService.cs`
 - `src/Security/Argon2idPasswordHashService.cs`
-- `src/Security/IPasswordHashService.cs`
 - `src/Services/ServiceHelper.cs`
 - `src/Services/BdHttpContextHelper.cs`
+
+> `JwtTokenService`, `ITokenService`, and `IPasswordHashService` live in the `BlackDigital.Domain` package (namespace `BlackDigital.Domain.Security`), not in this repository.

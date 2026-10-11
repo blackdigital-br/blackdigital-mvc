@@ -4,23 +4,28 @@ using Microsoft.Extensions.DependencyInjection;
 namespace BlackDigital.AspNet.Rest
 {
     /// <summary>
-    /// Builder para configurar serviços REST
+    /// Builder used to configure REST services and their lifetimes within the
+    /// dependency injection container.
     /// </summary>
     public class RestServiceBuilder
     {
         private readonly IServiceCollection _services;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RestServiceBuilder"/> class.
+        /// </summary>
+        /// <param name="services">The service collection to register services into.</param>
         public RestServiceBuilder(IServiceCollection services)
         {
             _services = services;
         }
 
         /// <summary>
-        /// Adiciona um serviço REST com sua implementação
+        /// Registers a REST service with a scoped lifetime.
         /// </summary>
-        /// <typeparam name="TService">Interface do serviço</typeparam>
-        /// <typeparam name="TImplementation">Implementação do serviço</typeparam>
-        /// <returns>Builder para encadeamento</returns>
+        /// <typeparam name="TService">The service interface.</typeparam>
+        /// <typeparam name="TImplementation">The service implementation.</typeparam>
+        /// <returns>The current builder for chaining.</returns>
         public RestServiceBuilder AddService<TService, TImplementation>()
             where TService : class
             where TImplementation : class, TService
@@ -30,11 +35,11 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviço REST com lifetime singleton
+        /// Registers a REST service with a singleton lifetime.
         /// </summary>
-        /// <typeparam name="TService">Interface do serviço</typeparam>
-        /// <typeparam name="TImplementation">Implementação do serviço</typeparam>
-        /// <returns>Builder para encadeamento</returns>
+        /// <typeparam name="TService">The service interface.</typeparam>
+        /// <typeparam name="TImplementation">The service implementation.</typeparam>
+        /// <returns>The current builder for chaining.</returns>
         public RestServiceBuilder AddSingletonService<TService, TImplementation>()
             where TService : class
             where TImplementation : class, TService
@@ -44,11 +49,11 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviço REST com lifetime transient
+        /// Registers a REST service with a transient lifetime.
         /// </summary>
-        /// <typeparam name="TService">Interface do serviço</typeparam>
-        /// <typeparam name="TImplementation">Implementação do serviço</typeparam>
-        /// <returns>Builder para encadeamento</returns>
+        /// <typeparam name="TService">The service interface.</typeparam>
+        /// <typeparam name="TImplementation">The service implementation.</typeparam>
+        /// <returns>The current builder for chaining.</returns>
         public RestServiceBuilder AddTransientService<TService, TImplementation>()
             where TService : class
             where TImplementation : class, TService
@@ -58,11 +63,11 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona um serviço REST usando uma factory
+        /// Registers a REST service using a factory delegate with a scoped lifetime.
         /// </summary>
-        /// <typeparam name="TService">Interface do serviço</typeparam>
-        /// <param name="factory">Factory para criar a instância</param>
-        /// <returns>Builder para encadeamento</returns>
+        /// <typeparam name="TService">The service interface.</typeparam>
+        /// <param name="factory">The factory used to create the service instance.</param>
+        /// <returns>The current builder for chaining.</returns>
         public RestServiceBuilder AddService<TService>(Func<IServiceProvider, TService> factory)
             where TService : class
         {

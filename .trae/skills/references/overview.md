@@ -2,9 +2,9 @@
 
 ## Purpose
 
-BlackDigital.AspNet is an ASP.NET Core framework that simplifies REST API development by replacing traditional controllers with attribute-driven service interfaces. It provides a REST middleware, an API transformation/versioning engine, OpenAPI + Scalar documentation generation, JWT and Argon2id security services, and SMTP/HTML-template email infrastructure.
+BlackDigital.AspNet is an ASP.NET Core framework that simplifies REST API development by replacing traditional controllers with attribute-driven service interfaces. It provides a REST middleware, an API transformation/versioning engine, OpenAPI + Scalar documentation generation, DI helpers for the JWT/email/password services from `BlackDigital.Domain`, and the Argon2id password hashing implementation.
 
-It depends on the shared `BlackDigital` library (for `Id`, `BusinessException`, `JsonCast`, REST attributes, etc.).
+It depends on the shared `BlackDigital` library (for `Id`, `BusinessException`, `JsonCast`, REST attributes, etc.) and on `BlackDigital.Domain` (for `JwtTokenService`, `ITokenService`, `IPasswordHashService`, and the email infrastructure).
 
 ## Main source areas
 
@@ -25,12 +25,9 @@ It depends on the shared `BlackDigital` library (for `Id`, `BusinessException`, 
   - `OpenApiEndpointRouteBuilderExtensions` — `AddOpenApi` / `MapOpenApi` (Scalar UI)
   - `ServiceAttributeHelper` / `ActionAttributeHelper` — reflection helpers for route/method/authorize metadata
 - `src/Security/`
-  - `JwtService` / `ITokenService` — JWT generation, validation, refresh tokens, token id extraction
-  - `Argon2idPasswordHashService` / `IPasswordHashService` — Argon2id password hashing and verification
+  - `Argon2idPasswordHashService` — Argon2id implementation of `IPasswordHashService` (from `BlackDigital.Domain`)
 - `src/Infrastructures/`
-  - `IEmailService`, `Email`, `BaseEmailService`, `SmtpEmailService` — SMTP sending via MailKit with multi-provider fallback
-  - `ITemplateEmailService`, `TemplateEmail`, `BaseTemplateEmailService`, `HtmlTemplateEmailService` — HTML template email with `{{ key }}` placeholders
-  - `InfrastructureHelper` — `AddSmtpService` / `AddEmailService<T>`
+  - `InfrastructureHelper` — `AddSmtpService` / `AddEmailService<T>` (registers `IEmailService`/`SmtpEmailService` from `BlackDigital.Domain`)
 - `src/Binder/` — `IdBinder`, `IdModelBinderProvider` (model binding for `BlackDigital.Model.Id`)
 - `src/Constraint/` — `IdConstraint` (route constraint for `id` values)
 - `src/Filters/` — `ModelStateValidationFilter` (returns `ErrorApiResponse` on invalid model state)
@@ -45,8 +42,8 @@ It depends on the shared `BlackDigital` library (for `Id`, `BusinessException`, 
 - `doc/rest-system.md` / `doc/rest-system.pt.md`
 - `doc/transform-system.md` / `doc/transform-system.pt.md`
 - `doc/openapi.md` / `doc/openapi.pt.md`
-- `doc/security.md` / `doc/security.pt.md`
-- `doc/email.md` / `doc/email.pt.md`
+
+> Security (JWT, password hashing) and email documentation now live in the `BlackDigital.Domain` repository.
 
 ## Source-first files to consult
 
@@ -66,13 +63,12 @@ It depends on the shared `BlackDigital` library (for `Id`, `BusinessException`, 
   - `src/OpenApi/BdOpenApiOptions.cs`
   - `src/OpenApi/OpenApiEndpointRouteBuilderExtensions.cs`
 - Security behavior
-  - `src/Security/JwtService.cs`
   - `src/Security/Argon2idPasswordHashService.cs`
+  - `src/Services/ServiceHelper.cs` (DI helpers for `JwtTokenService` and `IPasswordHashService`)
 - Email behavior
-  - `src/Infrastructures/SmtpEmailService.cs`
-  - `src/Infrastructures/HtmlTemplateEmailService.cs`
-  - `src/Infrastructures/Email.cs`
-  - `src/Infrastructures/TemplateEmail.cs`
+  - `src/Infrastructures/InfrastructureHelper.cs` (DI helpers for `SmtpEmailService` and `IEmailService`)
+
+> `JwtTokenService`, `ITokenService`, `IPasswordHashService`, and all email types (`IEmailService`, `SmtpEmailService`, `HtmlTemplateEmailService`, `Email`, `TemplateEmail`) live in the `BlackDigital.Domain` package.
 
 ## Common LLM mistakes to avoid
 

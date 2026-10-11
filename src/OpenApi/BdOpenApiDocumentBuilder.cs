@@ -23,20 +23,40 @@ namespace BlackDigital.AspNet.OpenApi
         private readonly BdOpenApiOptions _options;
         private readonly BdOpenApiSchemaGenerator _schemas = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BdOpenApiDocumentBuilder"/> class.
+        /// </summary>
+        /// <param name="options">The options used to build the OpenAPI document.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
         public BdOpenApiDocumentBuilder(BdOpenApiOptions options)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <summary>
-        /// Convenience forwards. Callers normally use these values from
-        /// <see cref="BdOpenApiOptions"/> directly; the getters are kept to
-        /// avoid unnecessarily touching call-sites in the provider.
+        /// Gets the document title from the configured options.
         /// </summary>
         public string Title => _options.Title;
+
+        /// <summary>
+        /// Gets the document version from the configured options.
+        /// </summary>
         public string Version => _options.Version;
+
+        /// <summary>
+        /// Gets the server URL from the configured options, or <c>null</c> when
+        /// not set.
+        /// </summary>
         public string? ServerUrl => _options.ServerUrl;
 
+        /// <summary>
+        /// Builds a complete <see cref="OpenApiDocument"/> by scanning the
+        /// application domain for service interfaces decorated with
+        /// <c>ServiceAttribute</c> and generating paths, operations and schemas.
+        /// </summary>
+        /// <param name="ct">A cancellation token for the build operation.</param>
+        /// <returns>The generated OpenAPI document.</returns>
+        /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
         public OpenApiDocument Build(CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();

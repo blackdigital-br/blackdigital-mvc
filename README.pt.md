@@ -20,8 +20,6 @@ O **BlackDigital.AspNet** é um framework inovador que simplifica drasticamente 
 - **🔧 Sistema REST**: Criação de APIs sem controllers usando interfaces de serviço e atributos
 - **🔄 Sistema de Transformação**: Evolução de API mantendo compatibilidade com versões anteriores
 - **📖 OpenAPI + Scalar**: Geração automática de documentação da API (sem Swashbuckle)
-- **🔐 Segurança**: Serviço de tokens JWT e hash de senhas Argon2id
-- **📧 Infraestrutura de Email**: Serviço de email SMTP com suporte a templates HTML
 - **⚡ Alta Performance**: Middleware otimizado para máxima eficiência
 - **🧪 Testabilidade**: Arquitetura que facilita testes unitários e de integração
 - **📦 Modular**: Componentes independentes e reutilizáveis
@@ -161,16 +159,7 @@ Documentação automática sem Swashbuckle:
 - **Bearer JWT**: Esquema de segurança pré-configurado (sobrescrevível)
 - **Customizável**: Título, versão, contato, licença, URL do servidor, filtros de assembly
 
-### 🔐 Segurança
-Blocos de segurança prontos para uso:
-- **Serviço JWT**: Gere, valide e inspecione tokens JWT
-- **Argon2id**: Hash de senhas com memória/iterações/paralelismo configuráveis
-
-### 📧 Infraestrutura de Email
-Envie emails transacionais com facilidade:
-- **SMTP via MailKit**: Suporte a múltiplos provedores com configuração de fallback
-- **Templates HTML**: Carregue templates de `templates/email/` com placeholders `{{ chave }}`
-- **API Fluente**: `Email.Create().To(...).WithSubject(...).WithBody(...)`
+> **Nota:** Segurança (JWT, hash de senhas) e infraestrutura de Email agora fazem parte do pacote [BlackDigital.Domain](https://github.com/blackdigital-br/blackdigital-net-domain).
 
 ## 📚 Documentação Detalhada
 
@@ -178,15 +167,11 @@ Envie emails transacionais com facilidade:
 - **[Sistema REST](doc/rest-system.pt.md)** - Guia completo do sistema REST
 - **[Sistema de Transformação](doc/transform-system.pt.md)** - Guia completo do sistema de transformação
 - **[OpenAPI + Scalar](doc/openapi.pt.md)** - Guia de geração de documentação da API
-- **[Segurança](doc/security.pt.md)** - Guia de JWT e hash de senhas
-- **[Email](doc/email.pt.md)** - Guia de infraestrutura de email
 
 ### 🎯 Navegação Rápida
 - [Como criar serviços REST](doc/rest-system.pt.md#como-usar-implementação-prática)
 - [Configuração de transformações](doc/transform-system.pt.md#configuração-e-uso)
 - [Configuração do OpenAPI](doc/openapi.pt.md#configuração)
-- [Configuração do serviço JWT](doc/security.pt.md#serviço-de-token-jwt)
-- [Configuração do serviço de email](doc/email.pt.md#configuração)
 - [Melhores práticas](doc/rest-system.pt.md#melhores-práticas)
 
 ## 🚀 Exemplos Rápidos
@@ -239,8 +224,6 @@ BlackDigital.AspNet/
 │   ├── 📁 Rest/              # Sistema REST (middleware, roteamento, binding)
 │   │   └── 📁 Transforms/    # Motor de transformação
 │   ├── 📁 OpenApi/           # Construtor de documento OpenAPI + integração Scalar
-│   ├── 📁 Security/          # Serviços JWT e Argon2id
-│   ├── 📁 Infrastructures/   # Serviços de email (SMTP + templates)
 │   ├── 📁 Binder/            # Model binders customizados (Id)
 │   ├── 📁 Constraint/        # Route constraints (id)
 │   ├── 📁 Filters/           # Filtros MVC (validação de ModelState)
@@ -251,8 +234,6 @@ BlackDigital.AspNet/
 │   ├── 📄 rest-system.pt.md  # Documentação do sistema REST
 │   ├── 📄 transform-system.pt.md # Documentação de transformações
 │   ├── 📄 openapi.pt.md      # Documentação do OpenAPI + Scalar
-│   ├── 📄 security.pt.md     # Documentação de segurança (JWT / Argon2id)
-│   ├── 📄 email.pt.md        # Documentação de infraestrutura de email
 │   └── 📁 images/            # Imagens da documentação
 └── 📄 README.md              # Este arquivo
 ```

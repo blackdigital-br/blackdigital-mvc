@@ -1,11 +1,23 @@
-﻿using BlackDigital.Rest;
+using BlackDigital.Rest;
 using System.Reflection;
 
 namespace BlackDigital.AspNet.OpenApi
 {
+    /// <summary>
+    /// Helper methods for extracting route information from BlackDigital.Rest
+    /// service attributes via reflection.
+    /// </summary>
     public static class ServiceAttributeHelper
     {
 
+        /// <summary>
+        /// Gets the base route declared on a service attribute by inspecting
+        /// common property/field names (<c>BaseRoute</c>, <c>Route</c>,
+        /// <c>Path</c>, <c>Value</c>) and falling back to the attribute's
+        /// <c>ToString</c> representation.
+        /// </summary>
+        /// <param name="serviceAttribute">The service attribute instance to inspect.</param>
+        /// <returns>The resolved base route, or <c>"api/unknown"</c> when none is found.</returns>
         public static string GetRoute(ServiceAttribute serviceAttribute)
         {
             var type = serviceAttribute.GetType();

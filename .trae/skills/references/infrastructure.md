@@ -2,7 +2,7 @@
 
 ## Email services
 
-The email infrastructure has two layers: a low-level `IEmailService` (sends raw emails) and a higher-level `ITemplateEmailService` (renders HTML templates then sends).
+The email infrastructure (`IEmailService`, `Email`, `SmtpEmailService`, `ITemplateEmailService`, `TemplateEmail`, `HtmlTemplateEmailService`) now lives in the **`BlackDigital.Domain`** package (namespace `BlackDigital.Domain.Infrastructures`). This library provides only the DI registration helpers below.
 
 ### Registration
 
@@ -114,20 +114,12 @@ If `Host`, `User`, `Password`, or `From` are missing, the email is **not sent** 
 | `AddHtmlTemplateEmailService()` | `ITemplateEmailService` → `HtmlTemplateEmailService` |
 | `AddArgon2idPasswordHashService()` | `IPasswordHashService` → `Argon2idPasswordHashService` (default params) |
 | `AddArgon2idPasswordHashService(memorySize, iterations, parallelism, saltLength, hashLength)` | `IPasswordHashService` → `Argon2idPasswordHashService` (custom params, singleton) |
-| `AddJwtService(IConfiguration)` | `ITokenService` → `JwtService` (from `Jwt` config section) |
-| `AddJwtService(secretKey, issuer, audience, expirationMinutes)` | `ITokenService` → `JwtService` (explicit) |
+| `AddJwtTokenService(IConfiguration)` | `ITokenService` → `JwtTokenService` (from `Jwt` config section) |
+| `AddJwtTokenService(secretKey, issuer, audience, expirationMinutes)` | `ITokenService` → `JwtTokenService` (explicit) |
 | `ConfigServices<TTemplate, TToken, TPassword>()` | all three generic registrations at once |
 
 ## Source files
 
-- `src/Infrastructures/Email.cs`
-- `src/Infrastructures/TemplateEmail.cs`
-- `src/Infrastructures/IEmailService.cs`
-- `src/Infrastructures/ITemplateEmailService.cs`
-- `src/Infrastructures/BaseEmailService.cs`
-- `src/Infrastructures/BaseTemplateEmailService.cs`
-- `src/Infrastructures/SmtpEmailService.cs`
-- `src/Infrastructures/HtmlTemplateEmailService.cs`
 - `src/Infrastructures/InfrastructureHelper.cs`
 - `src/Binder/IdBinder.cs`
 - `src/Binder/IdModelBinderProvider.cs`
@@ -135,3 +127,5 @@ If `Host`, `User`, `Password`, or `From` are missing, the email is **not sent** 
 - `src/Filters/ModelStateValidationFilter.cs`
 - `src/Services/ServiceHelper.cs`
 - `src/Services/BdHttpContextHelper.cs`
+
+> `Email`, `TemplateEmail`, `IEmailService`, `ITemplateEmailService`, `SmtpEmailService`, and `HtmlTemplateEmailService` live in the `BlackDigital.Domain` package (namespace `BlackDigital.Domain.Infrastructures`), not in this repository.
