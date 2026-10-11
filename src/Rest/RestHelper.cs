@@ -9,12 +9,20 @@ using System.Text.Json.Serialization;
 
 namespace BlackDigital.AspNet.Rest
 {
+    /// <summary>
+    /// Helper methods for configuring MVC options and REST-related services
+    /// (custom model binders, route constraints and JSON converters).
+    /// </summary>
     public static class RestHelper
     {
 
         /// <summary>
-        /// Configura as opções padrão do MVC incluindo model binders e constraints
+        /// Configures the default MVC options, registering custom model binders,
+        /// route constraints and JSON converters required by the BlackDigital
+        /// REST infrastructure.
         /// </summary>
+        /// <param name="services">The service collection to configure.</param>
+        /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddRestMvcOptions(this IServiceCollection services)
         {
             services.AddControllers(options => {
@@ -38,10 +46,11 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Adiciona as opções padrão do MVC incluindo model binders personalizados
+        /// Adds the default MVC options, including the custom
+        /// <see cref="IdModelBinderProvider"/> at the top of the binder list.
         /// </summary>
-        /// <param name="options">As opções do MVC a serem configuradas</param>
-        /// <returns>As opções do MVC configuradas para permitir encadeamento de métodos</returns>
+        /// <param name="options">The MVC options to configure.</param>
+        /// <returns>The configured MVC options for chaining.</returns>
         public static MvcOptions AddDefaultOptions(this MvcOptions options)
         {
             options.ModelBinderProviders.Insert(0, new IdModelBinderProvider());

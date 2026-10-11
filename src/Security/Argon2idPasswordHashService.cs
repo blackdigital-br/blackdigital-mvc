@@ -1,9 +1,15 @@
-﻿using Konscious.Security.Cryptography;
+using BlackDigital.Domain.Security;
+using Konscious.Security.Cryptography;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace BlackDigital.AspNet.Security
 {
+    /// <summary>
+    /// Argon2id implementation of <see cref="IPasswordHashService"/>.
+    /// Produces self-contained hash strings in the PHC string format that
+    /// embed the salt and parameters used for hashing.
+    /// </summary>
     public class Argon2idPasswordHashService : IPasswordHashService
     {
         private const int Argon2Version = 19; // v0x13
@@ -14,6 +20,16 @@ namespace BlackDigital.AspNet.Security
         private readonly int _saltLength;
         private readonly int _hashLength;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Argon2idPasswordHashService"/> class
+        /// with the specified Argon2id parameters.
+        /// </summary>
+        /// <param name="memorySize">The memory size in KB. Must be at least 8.</param>
+        /// <param name="iterations">The number of iterations. Must be at least 1.</param>
+        /// <param name="parallelism">The degree of parallelism. Must be at least 1.</param>
+        /// <param name="saltLength">The salt length in bytes. Must be at least 8.</param>
+        /// <param name="hashLength">The hash length in bytes. Must be at least 4.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when any parameter is below its minimum value.</exception>
         public Argon2idPasswordHashService(
             int memorySize = 65536,
             int iterations = 3,
@@ -43,6 +59,13 @@ namespace BlackDigital.AspNet.Security
             _hashLength = hashLength;
         }
 
+        /// <summary>
+        /// Hashes the specified password using a randomly generated salt and
+        /// returns a self-contained Argon2id hash string.
+        /// </summary>
+        /// <param name="password">The password to hash.</param>
+        /// <returns>A hash string in PHC format containing the parameters, salt and hash.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="password"/> is null or empty.</exception>
         public string HashPassword(string password)
         {
             if (string.IsNullOrEmpty(password))
@@ -54,6 +77,13 @@ namespace BlackDigital.AspNet.Security
             return $"$argon2id$v={Argon2Version}$m={_memorySize},t={_iterations},p={_parallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
         }
 
+        /// <summary>
+        /// Verifies a password against a previously generated Argon2id hash string
+        /// using a constant-time comparison.
+        /// </summary>
+        /// <param name="password">The password to verify.</param>
+        /// <param name="hashedPassword">The hash string to verify against.</param>
+        /// <returns><c>true</c> when the password matches the hash; otherwise, <c>false</c>.</returns>
         public bool VerifyPassword(string password, string hashedPassword)
         {
             if (string.IsNullOrEmpty(password))

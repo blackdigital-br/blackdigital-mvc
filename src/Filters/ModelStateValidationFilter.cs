@@ -4,10 +4,17 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace BlackDigital.AspNet.Filters
 {
     /// <summary>
-    /// Filter to handle ModelState validation errors and convert them to ErrorApiResponse format
+    /// Action filter that intercepts invalid model states and converts them
+    /// into an <see cref="ErrorApiResponse"/> returned with a 400 Bad Request.
     /// </summary>
     public class ModelStateValidationFilter : IActionFilter
     {
+        /// <summary>
+        /// Called before the action executes. When the model state is invalid,
+        /// the request is short-circuited with a 400 Bad Request containing
+        /// the validation errors.
+        /// </summary>
+        /// <param name="context">The action executing context.</param>
         public void OnActionExecuting(ActionExecutingContext context)
         {
             if (!context.ModelState.IsValid)
@@ -26,6 +33,10 @@ namespace BlackDigital.AspNet.Filters
             }
         }
 
+        /// <summary>
+        /// Called after the action executes. No action is performed by this filter.
+        /// </summary>
+        /// <param name="context">The action executed context.</param>
         public void OnActionExecuted(ActionExecutedContext context)
         {
             // No action needed after execution

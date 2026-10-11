@@ -1,6 +1,6 @@
 ---
 name: blackdigital-aspnet
-description: Understand and work with the BlackDigital.AspNet framework in this repository. Use when the user asks about BlackDigital.AspNet APIs, REST middleware, OpenAPI/Scalar, transforms, security (JWT/Argon2id), email infrastructure, or code changes in this library. Do not use for unrelated projects or for the core BlackDigital library (use the blackdigital-library skill for that).
+description: Understand and work with the BlackDigital.AspNet framework in this repository. Use when the user asks about BlackDigital.AspNet APIs, REST middleware, OpenAPI/Scalar, transforms, or code changes in this library. JWT and email infrastructure now live in the BlackDigital.Domain package (separate repository). Do not use for unrelated projects or for the core BlackDigital library.
 ---
 
 # BlackDigital.AspNet
@@ -58,20 +58,18 @@ Read [references/openapi.md](references/openapi.md) before editing OpenAPI code 
 
 ### Security
 
-- `JwtService` enforces a **32-byte (256-bit)** minimum secret key for HMAC-SHA256 and uses `ClockSkew = TimeSpan.Zero`.
-- `Argon2idPasswordHashService` produces self-describing `$argon2id$v=19$m=...,t=...,p=...$salt$hash` strings and uses fixed-time comparison.
-- `AddJwtService(IConfiguration)` reads the `Jwt` section and **fails fast** at registration if `SecretKey`, `Issuer`, or `Audience` are missing.
+- **JWT (`JwtTokenService`) and `IPasswordHashService` now live in the `BlackDigital.Domain` package** (moved out of this repository). The `ITokenService` and `IPasswordHashService` interfaces are no longer defined here.
+- `Argon2idPasswordHashService` (the Argon2id implementation of `IPasswordHashService`) still lives in this repository.
+- `AddJwtTokenService(IConfiguration)` reads the `Jwt` section and **fails fast** at registration if `SecretKey`, `Issuer`, or `Audience` are missing.
 
 Read [references/security.md](references/security.md) before editing security code or examples.
 
 ### Email, binding, and MVC helpers
 
-- `Email` and `TemplateEmail` use a **fluent builder** API (`Email.Create().To(...).WithSubject(...).WithBody(...)`).
-- `SmtpEmailService` resolves per-provider config with fallback to the default `Email:` section; secure socket defaults are implicit SSL on 465, STARTTLS on 587, auto otherwise.
-- `HtmlTemplateEmailService` loads templates from `{contentRoot}/templates/email/` with `{{ key }}` placeholders and rejects path traversal in template names.
+- **Email infrastructure (`Email`, `TemplateEmail`, `IEmailService`, `SmtpEmailService`, `HtmlTemplateEmailService`, etc.) now lives in the `BlackDigital.Domain` package** (moved out of this repository).
 - `AddRestMvcOptions()` registers the `Id` model binder, the `id` route constraint, `IdConverter`/`TimeSpanConverter`/`JsonStringEnumConverter`, and `ModelStateValidationFilter`.
 
-Read [references/infrastructure.md](references/infrastructure.md) for email, model binding, filters, and DI helpers.
+Read [references/infrastructure.md](references/infrastructure.md) for model binding, filters, and DI helpers.
 
 ## Documentation workflow
 

@@ -15,6 +15,12 @@ namespace BlackDigital.AspNet.Rest
     {
         private readonly Dictionary<string, List<RestRouteEntry>> _routesByMethod;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RestRouteRegistry"/> class
+        /// by scanning the provided service descriptors for interfaces decorated
+        /// with <c>ServiceAttribute</c>.
+        /// </summary>
+        /// <param name="services">The service descriptors to scan for REST services.</param>
         public RestRouteRegistry(IEnumerable<ServiceDescriptor> services)
         {
             _routesByMethod = BuildRoutes(services);
@@ -87,6 +93,12 @@ namespace BlackDigital.AspNet.Rest
     /// </summary>
     public sealed class RestRouteEntry
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RestRouteEntry"/> class.
+        /// </summary>
+        /// <param name="routePattern">The URL pattern for the route.</param>
+        /// <param name="service">The service descriptor that owns the route.</param>
+        /// <param name="method">The method to invoke when the route matches.</param>
         public RestRouteEntry(string routePattern, ServiceDescriptor service, MethodInfo method)
         {
             RoutePattern = routePattern;
@@ -94,10 +106,19 @@ namespace BlackDigital.AspNet.Rest
             Method = method;
         }
 
+        /// <summary>
+        /// Gets the URL pattern for the route.
+        /// </summary>
         public string RoutePattern { get; }
 
+        /// <summary>
+        /// Gets the service descriptor that owns the route.
+        /// </summary>
         public ServiceDescriptor Service { get; }
 
+        /// <summary>
+        /// Gets the method to invoke when the route matches.
+        /// </summary>
         public MethodInfo Method { get; }
     }
 }

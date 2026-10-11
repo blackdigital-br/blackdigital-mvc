@@ -69,23 +69,16 @@ The following modules have **incomplete or missing** XML documentation and shoul
 | `Rest/RestMiddlewareExtensions.cs` | 2 | Partial |
 | `Rest/RestError.cs` | ? | Needs audit |
 | `Rest/Transforms/*` | ? | Needs audit |
-| `Security/JwtService.cs` | 0 | **No docs** |
 | `Security/Argon2idPasswordHashService.cs` | 0 | **No docs** |
-| `Security/ITokenService.cs` | 0 | **No docs** |
-| `Security/IPasswordHashService.cs` | 0 | **No docs** |
 | `Services/ServiceHelper.cs` | 5 | Partial |
 | `Services/BdHttpContextHelper.cs` | 3 | Partial |
-| `Infrastructures/SmtpEmailService.cs` | 7 | Good |
-| `Infrastructures/HtmlTemplateEmailService.cs` | 0 | **No docs** |
-| `Infrastructures/Email.cs` | ? | Needs audit |
-| `Infrastructures/TemplateEmail.cs` | ? | Needs audit |
-| `Infrastructures/BaseEmailService.cs` | ? | Needs audit |
-| `Infrastructures/BaseTemplateEmailService.cs` | ? | Needs audit |
 | `Infrastructures/InfrastructureHelper.cs` | ? | Needs audit |
 | `Binder/IdBinder.cs` | 2 | Partial |
 | `Binder/IdModelBinderProvider.cs` | 2 | Partial |
 | `Constraint/IdConstraint.cs` | 2 | Partial |
 | `Filters/ModelStateValidationFilter.cs` | 1 | Partial |
+
+> `JwtTokenService`, `ITokenService`, `IPasswordHashService`, `SmtpEmailService`, `HtmlTemplateEmailService`, `Email`, `TemplateEmail`, and the `Base*Service` types now live in the `BlackDigital.Domain` repository.
 
 ## How to add summaries efficiently
 

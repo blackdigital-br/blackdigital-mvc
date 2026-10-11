@@ -8,6 +8,10 @@ using Scalar.AspNetCore;
 
 namespace BlackDigital.AspNet.OpenApi
 {
+    /// <summary>
+    /// Extension methods for registering the OpenAPI document provider and
+    /// mapping the OpenAPI JSON endpoint and Scalar UI into the request pipeline.
+    /// </summary>
     public static class OpenApiEndpointRouteBuilderExtensions
     {
         /// <summary>
@@ -21,6 +25,9 @@ namespace BlackDigital.AspNet.OpenApi
         /// example by setting <c>options.Enabled = env.IsDevelopment()</c>
         /// from the host).
         /// </remarks>
+        /// <param name="services">The service collection to register into.</param>
+        /// <param name="configure">An optional callback to configure the OpenAPI options.</param>
+        /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddOpenApi(
             this IServiceCollection services,
             Action<BdOpenApiOptions>? configure = null)
@@ -40,6 +47,8 @@ namespace BlackDigital.AspNet.OpenApi
         /// hardcoded route patterns, titles and Bearer preferences can be
         /// adjusted per host without touching this loader.
         /// </summary>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <returns>The endpoint route builder for chaining.</returns>
         public static IEndpointRouteBuilder MapOpenApi(
             this IEndpointRouteBuilder endpoints)
         {

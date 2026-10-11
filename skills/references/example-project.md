@@ -17,10 +17,10 @@ The example has:
 
 ### 1. Authentication and JWT
 
-**Why:** The framework ships `JwtService` and `[Action(authorize: true)]`, but the example only uses `authorize: false`. Users never see how auth flows end-to-end.
+**Why:** The framework ships `JwtTokenService` (from `BlackDigital.Domain`) and `[Action(authorize: true)]`, but the example only uses `authorize: false`. Users never see how auth flows end-to-end.
 
 **What to add:**
-- Register `JwtService` via `AddJwtService(builder.Configuration)`
+- Register `JwtTokenService` via `AddJwtTokenService(builder.Configuration)`
 - Add a `Jwt` section to `appsettings.json`
 - Create a `Login` action that validates credentials and returns a JWT
 - Add at least one action with `authorize: true` to show protected routes
@@ -37,7 +37,7 @@ The example has:
 
 ### 3. Email services
 
-**Why:** `SmtpEmailService` and `HtmlTemplateEmailService` are core infrastructure but absent from the example.
+**Why:** `SmtpEmailService` and `HtmlTemplateEmailService` (from `BlackDigital.Domain`) are core infrastructure but absent from the example.
 
 **What to add:**
 - Register `AddSmtpService()` and `AddHtmlTemplateEmailService()`

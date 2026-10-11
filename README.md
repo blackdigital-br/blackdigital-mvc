@@ -20,8 +20,6 @@
 - **🔧 REST System**: Create APIs without controllers using service interfaces and attributes
 - **🔄 Transformation System**: API evolution maintaining backward compatibility
 - **📖 OpenAPI + Scalar**: Automatic API documentation generation (no Swashbuckle)
-- **🔐 Security**: JWT token service and Argon2id password hashing
-- **📧 Email Infrastructure**: SMTP email service with HTML template support
 - **⚡ High Performance**: Optimized middleware for maximum efficiency
 - **🧪 Testability**: Architecture that facilitates unit and integration testing
 - **📦 Modular**: Independent and reusable components
@@ -161,16 +159,7 @@ Automatic, Swashbuckle-free documentation:
 - **Bearer JWT**: Pre-configured security scheme (overridable)
 - **Customizable**: Title, version, contact, license, server URL, assembly filters
 
-### 🔐 Security
-Ready-to-use security building blocks:
-- **JWT Service**: Generate, validate, and inspect JWT tokens
-- **Argon2id**: Password hashing with configurable memory/iterations/parallelism
-
-### 📧 Email Infrastructure
-Send transactional emails with ease:
-- **SMTP via MailKit**: Multi-provider support with fallback configuration
-- **HTML Templates**: Load templates from `templates/email/` with `{{ key }}` placeholders
-- **Fluent API**: `Email.Create().To(...).WithSubject(...).WithBody(...)`
+> **Note:** Security (JWT, password hashing) and Email infrastructure are now part of the [BlackDigital.Domain](https://github.com/blackdigital-br/blackdigital-net-domain) package.
 
 ## 📚 Detailed Documentation
 
@@ -178,15 +167,11 @@ Send transactional emails with ease:
 - **[REST System](doc/rest-system.md)** - Complete REST system guide
 - **[Transformation System](doc/transform-system.md)** - Complete transformation system guide
 - **[OpenAPI + Scalar](doc/openapi.md)** - API documentation generation guide
-- **[Security](doc/security.md)** - JWT and password hashing guide
-- **[Email](doc/email.md)** - SMTP and template email guide
 
 ### 🎯 Quick Navigation
 - [How to create REST services](doc/rest-system.md#how-to-use-practical-implementation)
 - [Transformation configuration](doc/transform-system.md#configuration-and-usage)
 - [OpenAPI configuration](doc/openapi.md#configuration)
-- [JWT service configuration](doc/security.md#jwt-token-service)
-- [Email service configuration](doc/email.md#configuration)
 - [Best practices](doc/rest-system.md#best-practices)
 
 ## 🚀 Quick Examples
@@ -239,8 +224,6 @@ BlackDigital.AspNet/
 │   ├── 📁 Rest/              # REST system (middleware, routing, binding)
 │   │   └── 📁 Transforms/    # Transformation engine
 │   ├── 📁 OpenApi/           # OpenAPI document builder + Scalar integration
-│   ├── 📁 Security/          # JWT and Argon2id services
-│   ├── 📁 Infrastructures/   # Email services (SMTP + templates)
 │   ├── 📁 Binder/            # Custom model binders (Id)
 │   ├── 📁 Constraint/        # Route constraints (id)
 │   ├── 📁 Filters/           # MVC filters (ModelState validation)
@@ -251,8 +234,6 @@ BlackDigital.AspNet/
 │   ├── 📄 rest-system.md     # REST system documentation
 │   ├── 📄 transform-system.md # Transformation documentation
 │   ├── 📄 openapi.md         # OpenAPI + Scalar documentation
-│   ├── 📄 security.md        # Security (JWT / Argon2id) documentation
-│   ├── 📄 email.md           # Email infrastructure documentation
 │   └── 📁 images/            # Documentation images
 └── 📄 README.md              # This file
 ```

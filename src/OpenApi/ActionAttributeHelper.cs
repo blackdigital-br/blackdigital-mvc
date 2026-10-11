@@ -1,10 +1,21 @@
-﻿using System.Reflection;
+using System.Reflection;
 
 namespace BlackDigital.AspNet.OpenApi
 {
+    /// <summary>
+    /// Helper methods for extracting route, HTTP method and authorization
+    /// information from BlackDigital.Rest action attributes via reflection.
+    /// </summary>
     public static class ActionAttributeHelper
     {
 
+        /// <summary>
+        /// Gets the route template declared on an action attribute by inspecting
+        /// common property/field names (<c>Path</c>, <c>Route</c>, <c>Template</c>,
+        /// <c>Value</c>).
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns>The route template, or an empty string when none is found.</returns>
         public static string GetRoute(object actionAttribute)
         {
             var type = actionAttribute.GetType();
@@ -29,6 +40,12 @@ namespace BlackDigital.AspNet.OpenApi
             return "";
         }
 
+        /// <summary>
+        /// Gets the HTTP operation type declared on an action attribute by
+        /// inspecting a <c>Method</c> or <c>RestMethod</c> property/field.
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns>The resolved HTTP method; defaults to <see cref="HttpMethod.Get"/>.</returns>
         public static HttpMethod GetOperationType(object actionAttribute)
         {
             var type = actionAttribute.GetType();
@@ -61,6 +78,12 @@ namespace BlackDigital.AspNet.OpenApi
             };
         }
 
+        /// <summary>
+        /// Determines whether an action attribute declares that authorization is
+        /// required by inspecting a boolean <c>Authorize</c> property or field.
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns><c>true</c> when authorization is required; otherwise, <c>false</c>.</returns>
         public static bool GetAuthorize(object actionAttribute)
         {
             var type = actionAttribute.GetType();

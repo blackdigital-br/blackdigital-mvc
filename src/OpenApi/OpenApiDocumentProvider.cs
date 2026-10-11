@@ -4,6 +4,10 @@ using Microsoft.OpenApi;
 
 namespace BlackDigital.AspNet.OpenApi
 {
+    /// <summary>
+    /// Default implementation of <see cref="IOpenApiDocumentProvider"/> that
+    /// builds and caches the OpenAPI document per request scheme+host.
+    /// </summary>
     public sealed class OpenApiDocumentProvider : IOpenApiDocumentProvider
     {
         private readonly object _sync = new();
@@ -11,6 +15,10 @@ namespace BlackDigital.AspNet.OpenApi
         private OpenApiDocument? _cached;
         private string? _cachedForSchemeHost;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="OpenApiDocumentProvider"/> class.
+        /// </summary>
+        /// <param name="options">The options used to configure the OpenAPI document.</param>
         public OpenApiDocumentProvider(IOptions<BdOpenApiOptions> options)
         {
             _options = options.Value ?? new BdOpenApiOptions();
@@ -19,8 +27,18 @@ namespace BlackDigital.AspNet.OpenApi
                 : _options.DocumentName;
         }
 
+        /// <summary>
+        /// Gets the name of the served OpenAPI document.
+        /// </summary>
         public string DocumentName { get; }
 
+        /// <summary>
+        /// Gets the OpenAPI document for the current request, deriving the
+        /// server URL from the request scheme and host when not explicitly set
+        /// in the options.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <returns>The generated (and cached) OpenAPI document.</returns>
         public OpenApiDocument GetDocument(HttpContext context)
         {
             var scheme = context.Request.Scheme;
@@ -60,6 +78,8 @@ namespace BlackDigital.AspNet.OpenApi
         }
 
         /// <summary>Writes the current document to <paramref name="stream"/> as JSON.</summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="stream">The stream to write the JSON document to.</param>
         public void WriteAsJson(HttpContext context, Stream stream)
         {
             var doc = GetDocument(context);

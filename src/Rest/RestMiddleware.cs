@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Rest.Transforms;
 using BlackDigital.Model;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Hosting;
@@ -15,9 +15,12 @@ using System.ComponentModel.DataAnnotations;
 namespace BlackDigital.AspNet.Rest
 {
     /// <summary>
-    /// Middleware personalizado que intercepta requisições HTTP e as roteia para serviços baseados em atributos de rota e ação,
-    /// fornecendo funcionalidades REST automáticas. Este middleware analisa os serviços registrados que possuem ServiceAttribute
-    /// e ActionAttribute, criando rotas dinâmicas e executando os métodos correspondentes com base na URL e método HTTP da requisição.
+    /// Custom middleware that intercepts HTTP requests and routes them to
+    /// services decorated with route and action attributes, providing automatic
+    /// REST functionality. The middleware inspects registered services that
+    /// carry <c>ServiceAttribute</c> and <c>ActionAttribute</c>, builds dynamic
+    /// routes and executes the corresponding methods based on the request URL
+    /// and HTTP method.
     /// </summary>
     public class RestMiddleware
     {
@@ -26,6 +29,14 @@ namespace BlackDigital.AspNet.Rest
         private readonly ILogger<RestMiddleware> _logger;
         private readonly IWebHostEnvironment _environment;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RestMiddleware"/> class.
+        /// </summary>
+        /// <param name="next">The next delegate in the request pipeline.</param>
+        /// <param name="routeRegistry">The pre-built route table for REST services.</param>
+        /// <param name="logger">The logger used for error reporting.</param>
+        /// <param name="environment">The hosting environment used to control stack-trace exposure.</param>
+        /// <exception cref="ArgumentNullException">Thrown when any argument is null.</exception>
         public RestMiddleware(RequestDelegate next,
                               RestRouteRegistry routeRegistry,
                               ILogger<RestMiddleware> logger,
@@ -37,6 +48,13 @@ namespace BlackDigital.AspNet.Rest
             _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         }
 
+        /// <summary>
+        /// Processes the incoming HTTP request. When the request matches a
+        /// registered REST route, the corresponding service method is invoked;
+        /// otherwise the request is forwarded to the next pipeline component.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         public async Task InvokeAsync(HttpContext context)
         {
             var path = context.Request.Path.Value;
@@ -320,6 +338,14 @@ namespace BlackDigital.AspNet.Rest
             }
         }
 
+        /// <summary>
+        /// Applies any registered output transform rules to the given value,
+        /// resolving the API version from the query string or headers.
+        /// </summary>
+        /// <param name="actionKey">The action key identifying which rules to apply.</param>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="apiOutput">The value to transform.</param>
+        /// <returns>A task that yields the transformed value, or the original value when no rules match.</returns>
         public async Task<object?> TransformOutputBodyAsync(string actionKey, HttpContext context, object? apiOutput)
         {
             var transformManager = context.RequestServices.GetService<TransformManager>();
