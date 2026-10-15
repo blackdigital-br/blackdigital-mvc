@@ -76,6 +76,15 @@ namespace BlackDigital.AspNet.Rest
             await _next(context);
         }
 
+        /// <summary>
+        /// Attempts to match the request path and method against the registered
+        /// route table, populating the route values from template segments.
+        /// </summary>
+        /// <param name="path">The lowercased request path.</param>
+        /// <param name="httpMethod">The uppercased HTTP method.</param>
+        /// <param name="routeEntry">The matched route entry, or null when no match is found.</param>
+        /// <param name="routeValues">The dictionary populated with route template values.</param>
+        /// <returns><c>true</c> when a matching route was found; otherwise, <c>false</c>.</returns>
         private bool TryMatchRoute(string path, string httpMethod, out RestRouteEntry? routeEntry, out Dictionary<string, object> routeValues)
         {
             routeEntry = null;
@@ -95,6 +104,15 @@ namespace BlackDigital.AspNet.Rest
             return false;
         }
 
+        /// <summary>
+        /// Checks whether a request path matches a route pattern, segment by
+        /// segment. Template segments enclosed in braces (<c>{param}</c>) capture
+        /// the corresponding path segment into <paramref name="routeValues"/>.
+        /// </summary>
+        /// <param name="path">The request path to match.</param>
+        /// <param name="pattern">The route pattern to match against.</param>
+        /// <param name="routeValues">The dictionary to populate with captured values.</param>
+        /// <returns><c>true</c> when the path matches the pattern; otherwise, <c>false</c>.</returns>
         private bool MatchesPattern(string path, string pattern, Dictionary<string, object> routeValues)
         {
             var pathSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
@@ -122,6 +140,15 @@ namespace BlackDigital.AspNet.Rest
             return true;
         }
 
+        /// <summary>
+        /// Executes the matched REST route: resolves authorization, instantiates
+        /// the service, binds method parameters from the request, invokes the
+        /// action method, and serializes the result. Exceptions are caught and
+        /// translated into HTTP responses.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="routeEntry">The matched route entry containing the service and method.</param>
+        /// <param name="routeValues">The route template values captured from the URL.</param>
         private async Task HandleRestRequest(HttpContext context, RestRouteEntry routeEntry, Dictionary<string, object> routeValues)
         {
             var methodInfo = routeEntry.Method;
@@ -135,13 +162,38 @@ namespace BlackDigital.AspNet.Rest
 
                 var actionKey = actionAttribute?.KeyIdentifier ?? $"{actionAttribute?.Method.ToString().ToUpperInvariant()}:{serviceAttribute?.BaseRoute}/{actionAttribute?.Route}";
 
-                if ((actionAttribute?.Authorize == true) || (serviceAttribute?.Authorize == true))
+                // Combine service-level policy prefix with action-level policy suffix.
+                // Examples: service "Category" + action "Read" => "Category.Read"
+                //           service "Category" + action null   => "Category"
+                var requiredPolicy = CombinePolicies(serviceAttribute?.Policy, actionAttribute?.Policy);
+
+                var requiresAuth = (actionAttribute?.Authorize == true)
+                                || (serviceAttribute?.Authorize == true)
+                                || !string.IsNullOrEmpty(requiredPolicy);
+
+                if (requiresAuth)
                 {
                     if (!context.User.Identity?.IsAuthenticated ?? true)
                     {
                         context.Response.StatusCode = 401;
                         await context.Response.WriteAsync("Unauthorized");
                         return;
+                    }
+
+                    // If a policy is required, evaluate it through the standard
+                    // ASP.NET Core authorization service.
+                    if (!string.IsNullOrEmpty(requiredPolicy))
+                    {
+                        var authorizationService = context.RequestServices
+                            .GetRequiredService<Microsoft.AspNetCore.Authorization.IAuthorizationService>();
+
+                        var authResult = await authorizationService.AuthorizeAsync(context.User, null, requiredPolicy);
+                        if (!authResult.Succeeded)
+                        {
+                            context.Response.StatusCode = 403;
+                            await context.Response.WriteAsync("Forbidden");
+                            return;
+                        }
                     }
                 }
 
@@ -203,6 +255,12 @@ namespace BlackDigital.AspNet.Rest
         }
 
 
+        /// <summary>
+        /// Resolves the JSON serializer options from the request services,
+        /// falling back to the web defaults when none are registered.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <returns>The resolved <see cref="JsonSerializerOptions"/>.</returns>
         private JsonSerializerOptions GetJsonOptions(HttpContext context)
         {
             var jsonOptions = context.RequestServices
@@ -213,6 +271,19 @@ namespace BlackDigital.AspNet.Rest
             return jsonOptions;
         }
 
+        /// <summary>
+        /// Builds the argument array for the action method by inspecting each
+        /// parameter's binding attributes (<c>[Path]</c>, <c>[Body]</c>,
+        /// <c>[Header]</c>, <c>[Query]</c>) and reading the corresponding value
+        /// from the request. Parameters with no explicit attribute are bound
+        /// from the query string when simple, or model-bound when complex.
+        /// Unbound optional parameters fall back to their declared default.
+        /// </summary>
+        /// <param name="actionKey">The action key used to look up input transform rules.</param>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="methodInfo">The method to prepare parameters for.</param>
+        /// <param name="routeValues">The route template values captured from the URL.</param>
+        /// <returns>An array of parameter values to pass to the method.</returns>
         private async Task<object?[]> PrepareMethodParameters(string actionKey, HttpContext context, MethodInfo methodInfo,
                                                            Dictionary<string, object> routeValues)
         {
@@ -305,6 +376,15 @@ namespace BlackDigital.AspNet.Rest
             return values;
         }
 
+        /// <summary>
+        /// Reads and deserializes the request body, applying any registered
+        /// input transform rules for the action. JSON parsing errors are
+        /// rethrown as <see cref="BadHttpRequestException"/>.
+        /// </summary>
+        /// <param name="actionKey">The action key used to look up input transform rules.</param>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="parameter">The target parameter whose type defines the deserialization target.</param>
+        /// <returns>The deserialized (and optionally transformed) body object, or null when the body is empty.</returns>
         private async Task<object?> TransformInputBodyAsync(string actionKey, HttpContext context, ParameterInfo parameter)
         {
             var jsonOptions = GetJsonOptions(context);
@@ -362,6 +442,15 @@ namespace BlackDigital.AspNet.Rest
             return apiOutput;
         }
 
+        /// <summary>
+        /// Converts a string value from a route, query string, or header into
+        /// the target parameter type. Supports enums, common primitives,
+        /// <see cref="DateTime"/>, <see cref="Guid"/>, the framework <see cref="Id"/>
+        /// type, and falls back to <see cref="Convert.ChangeType(object, Type, IFormatProvider)"/>.
+        /// </summary>
+        /// <param name="value">The string value to convert.</param>
+        /// <param name="targetType">The type to convert to (nullable underlying types are unwrapped).</param>
+        /// <returns>The converted value, or null when the input is null.</returns>
         private object? ConvertValue(string? value, Type targetType)
         {
             if (value == null)
@@ -401,6 +490,13 @@ namespace BlackDigital.AspNet.Rest
             return Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// Reads the full request body as a string, enabling request body
+        /// buffering so the stream can be read again later (e.g. by model
+        /// binding or logging middleware).
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <returns>The request body as a string.</returns>
         private async Task<string> ReadRequestBody(HttpContext context)
         {
             context.Request.EnableBuffering();
@@ -413,6 +509,16 @@ namespace BlackDigital.AspNet.Rest
             return body;
         }
 
+        /// <summary>
+        /// Processes the result of an action method invocation. Awaits
+        /// <see cref="Task"/>/<see cref="ValueTask"/> returns, applies output
+        /// transform rules, and writes the JSON response. Null or void results
+        /// produce a 204 No Content response.
+        /// </summary>
+        /// <param name="actionKey">The action key used to look up output transform rules.</param>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="result">The value returned by the action method.</param>
+        /// <param name="returnType">The declared return type of the action method.</param>
         private async Task ProcessResult(string actionKey, HttpContext context, object? result, Type returnType)
         {
             var jsonOptions = GetJsonOptions(context);
@@ -467,6 +573,36 @@ namespace BlackDigital.AspNet.Rest
             await context.Response.WriteAsync(json);
         }
 
+        /// <summary>
+        /// Combines a service-level policy prefix with an action-level policy suffix.
+        /// When both are present, they are joined with a dot (e.g. <c>Category</c> + <c>Read</c> = <c>Category.Read</c>).
+        /// When only one is present, that value is returned. When neither is present, null is returned.
+        /// </summary>
+        /// <param name="servicePolicy">The service-level policy prefix.</param>
+        /// <param name="actionPolicy">The action-level policy suffix.</param>
+        /// <returns>The combined policy name, or null if both are null/empty.</returns>
+        private static string? CombinePolicies(string? servicePolicy, string? actionPolicy)
+        {
+            var hasService = !string.IsNullOrWhiteSpace(servicePolicy);
+            var hasAction = !string.IsNullOrWhiteSpace(actionPolicy);
+
+            if (hasService && hasAction)
+                return $"{servicePolicy}.{actionPolicy}";
+            if (hasService)
+                return servicePolicy!;
+            if (hasAction)
+                return actionPolicy!;
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether a type is a "simple" value type that can be
+        /// converted from a string via <see cref="ConvertValue"/>: primitives,
+        /// <see cref="string"/>, <see cref="decimal"/>, date/time types,
+        /// <see cref="Guid"/>, enums, and the framework <see cref="Id"/> type.
+        /// </summary>
+        /// <param name="type">The type to test.</param>
+        /// <returns><c>true</c> when the type is simple; otherwise, <c>false</c>.</returns>
         private bool IsSimpleType(Type type)
         {
             var t = Nullable.GetUnderlyingType(type) ?? type;
@@ -481,6 +617,16 @@ namespace BlackDigital.AspNet.Rest
             return false;
         }
 
+        /// <summary>
+        /// Binds a complex object from the query string. When the query contains
+        /// keys prefixed with <paramref name="prefix"/>, properties are bound
+        /// using that prefix; otherwise it falls back to binding from
+        /// unprefixed property names. Returns null when no matching keys exist.
+        /// </summary>
+        /// <param name="query">The request query collection.</param>
+        /// <param name="prefix">The optional prefix used to namespace the object's properties.</param>
+        /// <param name="targetType">The type of object to create and bind.</param>
+        /// <returns>A populated instance of <paramref name="targetType"/>, or null when no keys match.</returns>
         private object? BindFromQuery(IQueryCollection query, string? prefix, Type targetType)
         {
             var hasPrefixed = prefix != null && HasAnyKeyForPrefix(query, prefix);
@@ -499,6 +645,14 @@ namespace BlackDigital.AspNet.Rest
             return instance;
         }
 
+        /// <summary>
+        /// Checks whether the query string contains any key that equals
+        /// <paramref name="prefix"/> or starts with <c>prefix.</c> or
+        /// <c>prefix[</c> (used to detect whether a prefixed object is present).
+        /// </summary>
+        /// <param name="query">The request query collection.</param>
+        /// <param name="prefix">The prefix to look for.</param>
+        /// <returns><c>true</c> when at least one key matches the prefix; otherwise, <c>false</c>.</returns>
         private bool HasAnyKeyForPrefix(IQueryCollection query, string prefix)
         {
             if (string.IsNullOrWhiteSpace(prefix))
@@ -515,6 +669,15 @@ namespace BlackDigital.AspNet.Rest
             return false;
         }
 
+        /// <summary>
+        /// Checks whether the query string contains any key that matches a
+        /// public writable property of <paramref name="targetType"/> (by name,
+        /// or with <c>.</c>/<c>[</c> suffixes). Used to decide whether to
+        /// attempt unprefixed model binding.
+        /// </summary>
+        /// <param name="query">The request query collection.</param>
+        /// <param name="targetType">The type whose properties are matched against query keys.</param>
+        /// <returns><c>true</c> when at least one property has a matching query key; otherwise, <c>false</c>.</returns>
         private bool HasAnyKeyForAnyProperty(IQueryCollection query, Type targetType)
         {
             foreach (var prop in targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
@@ -535,6 +698,16 @@ namespace BlackDigital.AspNet.Rest
             return false;
         }
 
+        /// <summary>
+        /// Recursively binds the public writable properties of <paramref name="instance"/>
+        /// from the query string. Simple properties are converted from matching
+        /// keys; enumerable properties are collected from indexed or comma-separated
+        /// keys; nested complex properties are bound recursively with a dotted or
+        /// bracketed prefix.
+        /// </summary>
+        /// <param name="query">The request query collection.</param>
+        /// <param name="prefix">The optional prefix to namespace property keys (null for root-level binding).</param>
+        /// <param name="instance">The object whose properties are populated.</param>
         private void BindProperties(IQueryCollection query, string? prefix, object instance)
         {
             var type = instance.GetType();
@@ -702,6 +875,15 @@ namespace BlackDigital.AspNet.Rest
             }
         }
 
+        /// <summary>
+        /// Determines whether a type is an enumerable collection and, if so,
+        /// returns its element type. Supports arrays and the common generic
+        /// collection interfaces (<see cref="List{T}"/>, <see cref="IList{T}"/>,
+        /// <see cref="IEnumerable{T}"/>).
+        /// </summary>
+        /// <param name="type">The type to inspect.</param>
+        /// <param name="elementType">The element type of the collection, or null when the type is not enumerable.</param>
+        /// <returns><c>true</c> when the type is an enumerable collection; otherwise, <c>false</c>.</returns>
         private bool IsEnumerableType(Type type, out Type elementType)
         {
             elementType = null!;

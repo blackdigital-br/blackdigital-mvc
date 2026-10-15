@@ -30,6 +30,8 @@ namespace BlackDigital.AspNet.Rest
         /// Returns the route entries registered for the given HTTP method
         /// (e.g. "GET", "POST"), or an empty enumeration when none exist.
         /// </summary>
+        /// <param name="httpMethod">The HTTP method to look up (case-insensitive).</param>
+        /// <returns>A read-only list of route entries for the method, or an empty list when none are registered.</returns>
         public IReadOnlyList<RestRouteEntry> GetRoutesForMethod(string httpMethod)
             => _routesByMethod.TryGetValue(httpMethod, out var routes) ? routes : Array.Empty<RestRouteEntry>();
 

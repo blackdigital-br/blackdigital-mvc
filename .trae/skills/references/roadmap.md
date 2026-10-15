@@ -2,36 +2,10 @@
 
 Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs; they are candidate features and refactors for framework developers.
 
-## Testing debt
-
-**Priority: highest**
-
-- Add tests for the entire `OpenApi/` module (currently zero tests)
-- Add tests for the entire `Security/` module (currently zero tests)
-- Add tests for `Services/ServiceHelper.cs` and `Services/BdHttpContextHelper.cs`
-- Add tests for `Filters/ModelStateValidationFilter.cs`
-- Add tests for `Infrastructures/InfrastructureHelper.cs`
-- Add tests for `OpenApi/ServiceAttributeHelper.cs` and `ActionAttributeHelper.cs`
-
-> `Email`, `TemplateEmail`, `HtmlTemplateEmailService`, `JwtTokenService`, and their tests now live in the `BlackDigital.Domain` repository.
-
-## XML documentation debt
-
-**Priority: high**
-
-- Audit all public members for missing `<summary>`, `<param>`, `<returns>`, `<exception>`
-- `RestMiddleware.cs` has only 1 `<summary>` — needs comprehensive docs
-- `RestRouteRegistry.cs` — needs method-level docs
-- `Security/Argon2idPasswordHashService.cs` — document all public methods and thrown exceptions
-- `OpenApi/` files — document options, builder methods, schema generation behavior
-
-> `JwtTokenService`, `ITokenService`, `IPasswordHashService`, and all email types now live in the `BlackDigital.Domain` repository.
-
 ## OpenAPI improvements
 
 - Support `[ProducesResponseType]`-style attributes for explicit response codes and schemas
 - Support `[FromForm]` / `IFormFile` parameter binding and OpenAPI multipart schema
-- Generate `requestBody` for `[Query]` complex objects as a dedicated OpenAPI object with expanded properties (currently handled but may need refinement)
 - Support operation tags grouping by service namespace
 - Add a `Deprecated` flag on `[Action]` that maps to `operation.deprecated`
 - Support `[Obsolete]` on service interfaces → deprecated tag
@@ -62,7 +36,6 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 - Add refresh-token rotation support in `JwtTokenService` (in `BlackDigital.Domain`)
 - Add token blacklist / revocation support
 - Support asymmetric signing (RSA/ECDSA) in addition to HMAC
-- Add a `[RequireRole]` / `[RequirePolicy]` attribute on `[Action]`
 - Add password strength validation helper
 - Add `ITokenService` methods for token introspection
 

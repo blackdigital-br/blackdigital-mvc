@@ -128,12 +128,12 @@ namespace BlackDigital.AspNet.OpenApi
             {
                 var serviceAttr = iface.GetCustomAttribute<ServiceAttribute>()!;
 
-                var tagName = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceName())
-                    ? serviceAttr.GetServiceName()
+                var tagName = !string.IsNullOrWhiteSpace(ServiceAttributeHelper.GetName(serviceAttr))
+                    ? ServiceAttributeHelper.GetName(serviceAttr)
                     : FriendlyGroupName(iface);
 
-                var tagDescription = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceDescription())
-                    ? serviceAttr.GetServiceDescription()
+                var tagDescription = !string.IsNullOrWhiteSpace(ServiceAttributeHelper.GetDescription(serviceAttr))
+                    ? ServiceAttributeHelper.GetDescription(serviceAttr)
                     : $"Endpoints exposed by {iface.FullName ?? iface.Name}.";
 
                 var tag = new OpenApiTag
@@ -163,12 +163,20 @@ namespace BlackDigital.AspNet.OpenApi
 
                     var actionRoute = ActionAttributeHelper.GetRoute(actionAttr).Trim('/');
                     var opHttpMethod = ActionAttributeHelper.GetOperationType(actionAttr);
+                    var actionName = ActionAttributeHelper.GetName(actionAttr);
+                    var actionDescription = ActionAttributeHelper.GetDescription(actionAttr);
                     // Authorization is required when declared at the action level OR
-                    // inherited from the service-level [ServiceAttribute], matching
-                    // the runtime check in RestMiddleware.
+                    // inherited from the service-level [ServiceAttribute], OR when a
+                    // policy is defined at either level — matching the runtime check
+                    // in RestMiddleware (service policy + action policy are combined
+                    // with a dot separator, e.g. "Category.Read").
                     var actionRequiresAuth = ActionAttributeHelper.GetAuthorize(actionAttr);
-                    var serviceRequiresAuth = serviceAttr?.Authorize == true;
-                    var requiresAuth = actionRequiresAuth || serviceRequiresAuth;
+                    var serviceRequiresAuth = ServiceAttributeHelper.GetAuthorize(serviceAttr);
+                    var actionPolicy = ActionAttributeHelper.GetPolicy(actionAttr);
+                    var servicePolicy = ServiceAttributeHelper.GetPolicy(serviceAttr);
+                    var hasPolicy = !string.IsNullOrWhiteSpace(servicePolicy)
+                                 || !string.IsNullOrWhiteSpace(actionPolicy);
+                    var requiresAuth = actionRequiresAuth || serviceRequiresAuth || hasPolicy;
 
                     var fullRoute = "/" + string.Join("/",
                         new[] { baseRoute, actionRoute }.Where(s => !string.IsNullOrWhiteSpace(s)));
@@ -182,7 +190,10 @@ namespace BlackDigital.AspNet.OpenApi
 
                     var operation = new OpenApiOperation
                     {
-                        Summary = FormatMethodName(method.Name),
+                        Summary = !string.IsNullOrWhiteSpace(actionName)
+                            ? actionName
+                            : FormatMethodName(method.Name),
+                        Description = actionDescription,
                         OperationId = method.DeclaringType?.Name + "_" + method.Name,
                         Responses = new OpenApiResponses(),
                         Tags = new HashSet<OpenApiTagReference> { serviceTagRef }

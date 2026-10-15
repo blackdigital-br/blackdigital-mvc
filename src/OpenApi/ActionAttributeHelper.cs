@@ -3,8 +3,9 @@ using System.Reflection;
 namespace BlackDigital.AspNet.OpenApi
 {
     /// <summary>
-    /// Helper methods for extracting route, HTTP method and authorization
-    /// information from BlackDigital.Rest action attributes via reflection.
+    /// Helper methods for extracting route, HTTP method, authorization,
+    /// policy, name and description information from BlackDigital.Rest action
+    /// attributes via reflection.
     /// </summary>
     public static class ActionAttributeHelper
     {
@@ -100,6 +101,79 @@ namespace BlackDigital.AspNet.OpenApi
                 return val is true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Gets the authorization policy name declared on an action attribute by
+        /// inspecting a <c>Policy</c> property or field.
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns>The policy name, or <c>null</c> when none is declared.</returns>
+        public static string? GetPolicy(object actionAttribute)
+        {
+            var type = actionAttribute.GetType();
+
+            var prop = type.GetProperty("Policy");
+            if (prop != null && prop.PropertyType == typeof(string))
+            {
+                var val = prop.GetValue(actionAttribute) as string;
+                if (!string.IsNullOrWhiteSpace(val))
+                    return val;
+            }
+
+            var field = type.GetField("Policy", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field != null && field.FieldType == typeof(string))
+            {
+                var val = field.GetValue(actionAttribute) as string;
+                if (!string.IsNullOrWhiteSpace(val))
+                    return val;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the display name of an action by invoking its <c>GetName</c>
+        /// method (which resolves the localized name using the configured
+        /// <c>ResourceType</c>).
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns>The resolved action name, or <c>null</c> when none is declared.</returns>
+        public static string? GetName(object actionAttribute)
+        {
+            var type = actionAttribute.GetType();
+
+            var method = type.GetMethod("GetName", Type.EmptyTypes);
+            if (method != null && method.ReturnType == typeof(string))
+            {
+                var val = method.Invoke(actionAttribute, null) as string;
+                if (!string.IsNullOrWhiteSpace(val))
+                    return val;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the description of an action by invoking its <c>GetDescription</c>
+        /// method (which resolves the localized description using the configured
+        /// <c>ResourceType</c>).
+        /// </summary>
+        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
+        /// <returns>The resolved action description, or <c>null</c> when none is declared.</returns>
+        public static string? GetDescription(object actionAttribute)
+        {
+            var type = actionAttribute.GetType();
+
+            var method = type.GetMethod("GetDescription", Type.EmptyTypes);
+            if (method != null && method.ReturnType == typeof(string))
+            {
+                var val = method.Invoke(actionAttribute, null) as string;
+                if (!string.IsNullOrWhiteSpace(val))
+                    return val;
+            }
+
+            return null;
         }
 
     }

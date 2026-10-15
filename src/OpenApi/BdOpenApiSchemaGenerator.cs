@@ -33,6 +33,7 @@ namespace BlackDigital.AspNet.OpenApi
         private readonly Dictionary<OpenApiSchema, int> _componentBySlotIndex = new();
 
         /// <summary>Components keyed by their stable $ref ID.</summary>
+        /// <returns>A read-only dictionary mapping component names to their schemas.</returns>
         public IReadOnlyDictionary<string, IOpenApiSchema> GetComponentSchemas()
         {
             var result = new Dictionary<string, IOpenApiSchema>();
@@ -49,6 +50,8 @@ namespace BlackDigital.AspNet.OpenApi
         /// Produces a schema for <paramref name="type"/>, wrapping the non-null
         /// core in a OneOf [ core, null ] union when the type is nullable.
         /// </summary>
+        /// <param name="type">The .NET type to generate a schema for.</param>
+        /// <returns>An <see cref="IOpenApiSchema"/> describing the type.</returns>
         public IOpenApiSchema GetSchema(Type type)
         {
             var t = Nullable.GetUnderlyingType(type) ?? type;

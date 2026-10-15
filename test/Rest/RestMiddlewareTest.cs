@@ -360,5 +360,27 @@ namespace BlackDigital.AspNet.Test.Rest
             Assert.NotNull(result);
             Assert.IsType<JsonSerializerOptions>(result);
         }
+
+        [Theory]
+        [InlineData(null, null, null)]
+        [InlineData("", "", null)]
+        [InlineData("  ", "   ", null)]
+        [InlineData("Category", null, "Category")]
+        [InlineData(null, "Read", "Read")]
+        [InlineData("Category", "Read", "Category.Read")]
+        [InlineData("Category", "", "Category")]
+        [InlineData("", "Read", "Read")]
+        public void CombinePolicies_ShouldReturnExpectedValue(string? servicePolicy, string? actionPolicy, string? expected)
+        {
+            // Arrange
+            var combinePoliciesMethod = typeof(RestMiddleware)
+                .GetMethod("CombinePolicies", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            var result = combinePoliciesMethod?.Invoke(null, new object?[] { servicePolicy, actionPolicy });
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
     }
 }
