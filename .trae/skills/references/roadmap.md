@@ -17,10 +17,7 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 ## Transformation improvements
 
 - Add a fluent builder for chaining input/output rules more readably
-- Support wildcard action keys (e.g. `POST:api/*`) for cross-cutting transformations
-- Add transformation rule priority within the same version
 - Support conditional rules (e.g. only transform if a header is present)
-- Add a `[Transform]` attribute on actions to declare rules declaratively instead of in `Program.cs`
 
 ## Security improvements
 

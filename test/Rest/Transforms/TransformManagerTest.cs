@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Rest.Transforms;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -46,21 +46,17 @@ namespace BlackDigital.AspNet.Test.Rest.Transforms
         }
 
         [Fact]
-        public void Constructor_ShouldPrioritizeRuleInstancesOverTypes()
+        public void Constructor_WhenSameKeyHasInstanceAndType_ShouldThrowDueToDuplicateVersion()
         {
             // Arrange
             var builder = new TransformBuilder();
             var rule = new Mock<ITransformRule>().Object;
             var key = new TransformKey("test", "1.0", TransformDirection.Input);
             builder.AddRule(key, rule);
-            builder.AddRule(key, typeof(TestTransformRule)); // This should be ignored
-            var serviceProvider = CreateServiceProvider();
 
-            // Act
-            var manager = new TransformManager(builder, serviceProvider);
-
-            // Assert
-            Assert.True(manager.HasRule(key));
+            // Act & Assert
+            // Two rules for the same key, version and direction are not allowed.
+            Assert.Throws<InvalidOperationException>(() => builder.AddRule(key, typeof(TestTransformRule)));
         }
 
         [Fact]

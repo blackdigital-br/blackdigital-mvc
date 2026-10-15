@@ -1,4 +1,6 @@
 using BlackDigital.AspNet.Example.Models;
+using BlackDigital.AspNet.Example.Transform;
+using BlackDigital.AspNet.Rest.Transforms;
 using BlackDigital.Rest;
 
 namespace BlackDigital.AspNet.Example.Services
@@ -10,6 +12,7 @@ namespace BlackDigital.AspNet.Example.Services
         Task<string> GetUserAsync([Path] string name);
 
         [Action(method: RestMethod.Post, authorize: false)]
+        [BlackDigital.AspNet.Rest.Transform(typeof(OldSaveUsertoSaveUserTransformRule), "2020-10-10", TransformDirection.Input)]
         Task<SaveUser> SaveUserAsync([Body] SaveUser user);
     }   
 }

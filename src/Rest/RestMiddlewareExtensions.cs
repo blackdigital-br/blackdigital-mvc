@@ -1,5 +1,9 @@
+using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.Rest;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Reflection;
 
 namespace BlackDigital.AspNet.Rest
 {
@@ -51,7 +55,71 @@ namespace BlackDigital.AspNet.Rest
             // relying on a captured static reference.
             services.AddSingleton(sp => new RestRouteRegistry(services));
 
+            // Register any [Transform] attributes declared on REST service
+            // methods into a shared TransformBuilder so they are picked up by
+            // the TransformManager at request time.
+            RegisterTransformAttributes(services);
+
             return services;
+        }
+
+        /// <summary>
+        /// Scans the registered REST service interfaces for methods decorated
+        /// with <see cref="TransformAttribute"/> and registers the declared
+        /// rules into a shared <see cref="TransformBuilder"/> singleton.
+        /// </summary>
+        /// <param name="services">The service collection to scan and register into.</param>
+        private static void RegisterTransformAttributes(IServiceCollection services)
+        {
+            // Reuse an existing TransformBuilder (e.g. registered by AddTransform)
+            // or create a new one so that programmatic and attribute-based rules
+            // share the same registry.
+            var transformBuilderDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TransformBuilder));
+            TransformBuilder transformBuilder;
+            if (transformBuilderDescriptor?.ImplementationInstance is TransformBuilder existing)
+            {
+                transformBuilder = existing;
+            }
+            else
+            {
+                transformBuilder = new TransformBuilder();
+                services.AddSingleton(transformBuilder);
+                services.TryAddScoped<TransformManager>();
+            }
+
+            foreach (var service in services)
+            {
+                if (!service.ServiceType.IsInterface)
+                    continue;
+
+                var serviceAttribute = service.ServiceType.GetCustomAttribute<ServiceAttribute>();
+                if (serviceAttribute == null)
+                    continue;
+
+                var baseRoute = serviceAttribute.BaseRoute ?? string.Empty;
+
+                foreach (var method in service.ServiceType.GetMethods())
+                {
+                    var actionAttribute = method.GetCustomAttribute<ActionAttribute>();
+                    if (actionAttribute == null)
+                        continue;
+
+                    var transforms = method.GetCustomAttributes<TransformAttribute>();
+                    if (!transforms.Any())
+                        continue;
+
+                    // The action key must match the key computed at runtime by
+                    // RestMiddleware (KeyIdentifier or METHOD:baseRoute/route).
+                    var actionKey = actionAttribute.KeyIdentifier
+                        ?? $"{actionAttribute.Method.ToString().ToUpperInvariant()}:{baseRoute}/{actionAttribute.Route}";
+
+                    foreach (var transform in transforms)
+                    {
+                        var key = new TransformKey(actionKey, transform.Version, transform.Direction);
+                        transformBuilder.AddRule(key, transform.RuleType);
+                    }
+                }
+            }
         }
 
         /// <summary>

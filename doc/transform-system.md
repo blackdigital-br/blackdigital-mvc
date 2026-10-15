@@ -259,6 +259,46 @@ For each request, the REST middleware determines the requested version by checki
 
 A rule registered with `TransformDirection.Both` matches both `Input` and `Output` queries.
 
+### Declarative Rules with `[Transform]` Attribute
+
+In addition to registering rules imperatively in `Program.cs` via `AddTransform`, you can declare a transform directly on the action method using the `[Transform]` attribute. The rule is registered automatically when `AddRestServices` scans the service interfaces:
+
+```csharp
+[Service("api/users")]
+public interface IUserService
+{
+    [Action("", method: RestMethod.Post)]
+    [Transform(typeof(UserV1ToV2Rule), "2024-01-01", TransformDirection.Input)]
+    Task<User> CreateAsync([Body] User user);
+
+    [Action("", method: RestMethod.Get)]
+    [Transform(typeof(UserV2ToV1Rule), "2024-01-01", TransformDirection.Output)]
+    Task<List<User>> GetAllAsync();
+}
+```
+
+The action key is derived automatically from the service base route and action route (matching the key used at runtime by the REST middleware), so you do not need to specify it manually.
+
+`[Transform]` and `AddTransform` share the same `TransformBuilder` registry, so you can mix declarative and programmatic rules freely.
+
+### No Duplicate Versions
+
+For the same action key and direction, **two rules may not share the same version**. Because the execution order within a single version would be undefined, the framework throws `InvalidOperationException` when you try to register a duplicate `(key, version, direction)` tuple. Use distinct versions to chain transformations:
+
+```csharp
+// OK — different versions chain in order
+config.AddInputRule<Step1Rule>("POST:api/users/", "2024-01-01");
+config.AddInputRule<Step2Rule>("POST:api/users/", "2024-06-01");
+
+// Throws InvalidOperationException — same key, version and direction
+config.AddInputRule<Step1Rule>("POST:api/users/", "2024-01-01");
+config.AddInputRule<Step2Rule>("POST:api/users/", "2024-01-01");
+```
+
+### Why Wildcard Keys Are Not Supported
+
+The transform system is intentionally **scoped to individual actions** and does not support wildcard keys (e.g. `POST:api/*`). Transformations change the input and output models of a specific action when its contract evolves between versions. Applying a rule across many actions by wildcard is dangerous because it can silently alter the models of unrelated endpoints, producing inconsistent or broken contracts. If you need the same transformation on several actions, register it explicitly for each action key.
+
 ### Rule Interface Hierarchy
 
 Rules implement one of the generic interfaces (or extend the matching abstract base class):

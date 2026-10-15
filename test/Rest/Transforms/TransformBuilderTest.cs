@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Rest.Transforms;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -445,6 +445,76 @@ namespace BlackDigital.AspNet.Test.Rest.Transforms
             var serviceProvider = services.BuildServiceProvider();
             var manager = new TransformManager(builder, serviceProvider);
             Assert.True(manager.HasRule(key));
+        }
+
+        [Fact]
+        public void AddRule_WithSameKeyVersionDirectionTwice_ShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var builder = new TransformBuilder();
+            var key = new TransformKey("GET:api/test", "v1", TransformDirection.Input);
+            var rule = new Mock<ITransformRule>().Object;
+            builder.AddRule(key, rule);
+
+            // Act & Assert
+            var ex = Assert.Throws<InvalidOperationException>(() => builder.AddRule(key, rule));
+            Assert.Contains("GET:api/test", ex.Message);
+            Assert.Contains("v1", ex.Message);
+        }
+
+        [Fact]
+        public void AddRule_WithSameKeyVersionDirectionTwiceForType_ShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var builder = new TransformBuilder();
+            var key = new TransformKey("GET:api/test", "v1", TransformDirection.Output);
+            builder.AddRule(key, typeof(TestTransformRule));
+
+            // Act & Assert
+            var ex = Assert.Throws<InvalidOperationException>(() => builder.AddRule(key, typeof(TestTransformRule)));
+            Assert.Contains("already registered", ex.Message);
+        }
+
+        [Fact]
+        public void AddRule_WithSameKeyButDifferentVersion_ShouldNotThrow()
+        {
+            // Arrange
+            var builder = new TransformBuilder();
+            var rule = new Mock<ITransformRule>().Object;
+            var keyV1 = new TransformKey("GET:api/test", "v1", TransformDirection.Input);
+            var keyV2 = new TransformKey("GET:api/test", "v2", TransformDirection.Input);
+
+            // Act
+            builder.AddRule(keyV1, rule);
+            builder.AddRule(keyV2, rule);
+
+            // Assert
+            var services = new ServiceCollection();
+            var serviceProvider = services.BuildServiceProvider();
+            var manager = new TransformManager(builder, serviceProvider);
+            Assert.True(manager.HasRule(keyV1));
+            Assert.True(manager.HasRule(keyV2));
+        }
+
+        [Fact]
+        public void AddRule_WithSameKeyVersionButDifferentDirection_ShouldNotThrow()
+        {
+            // Arrange
+            var builder = new TransformBuilder();
+            var rule = new Mock<ITransformRule>().Object;
+            var inputKey = new TransformKey("GET:api/test", "v1", TransformDirection.Input);
+            var outputKey = new TransformKey("GET:api/test", "v1", TransformDirection.Output);
+
+            // Act
+            builder.AddRule(inputKey, rule);
+            builder.AddRule(outputKey, rule);
+
+            // Assert
+            var services = new ServiceCollection();
+            var serviceProvider = services.BuildServiceProvider();
+            var manager = new TransformManager(builder, serviceProvider);
+            Assert.True(manager.HasRule(inputKey));
+            Assert.True(manager.HasRule(outputKey));
         }
     }
 }
