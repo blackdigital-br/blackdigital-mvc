@@ -7,7 +7,7 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>Logo128.png</PackageIcon>
-		<Version>26.10.11.19</Version>
+		<Version>26.10.15.04</Version>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<Title>BlackDigital.AspNet</Title>
