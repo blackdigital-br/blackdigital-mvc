@@ -675,7 +675,7 @@ namespace BlackDigital.AspNet.Rest
             else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
             {
                 // ValueTask<T> — extract the result via cached compiled expression.
-                result = MethodInvoker.GetValueTaskResult(result, returnType);
+                result = MethodInvoker.GetValueTaskResult(result!, returnType);
             }
 
             result = await TransformOutputBodyAsync(actionKey, context, result);

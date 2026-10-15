@@ -54,8 +54,8 @@ namespace BlackDigital.AspNet.Test.Filters
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(context.Result);
             var errorResponse = (ErrorApiResponse)badRequest.Value!;
-            Assert.Contains(errorResponse.Errors, e => e.Contains("Email"));
-            Assert.Contains(errorResponse.Errors, e => e.Contains("Age"));
+            Assert.Contains(errorResponse.Errors!, e => e.Contains("Email"));
+            Assert.Contains(errorResponse.Errors!, e => e.Contains("Age"));
         }
 
         [Fact]

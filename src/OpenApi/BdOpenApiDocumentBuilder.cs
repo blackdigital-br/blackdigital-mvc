@@ -154,7 +154,7 @@ namespace BlackDigital.AspNet.OpenApi
                     Name = tagName,
                     Description = tagDescription
                 };
-                var reference = new OpenApiTagReference(tag.Name, document);
+                var reference = new OpenApiTagReference(tagName!, document);
                 tagsByInterface[iface] = (tag, reference);
             }
 

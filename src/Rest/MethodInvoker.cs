@@ -9,7 +9,7 @@ namespace BlackDigital.AspNet.Rest
     /// <summary>
     /// Compiles and caches strongly-typed delegates for invoking service methods
     /// and extracting results from asynchronous return types, replacing the
-    /// slower reflection calls (<see cref="MethodInfo.Invoke(object, object[])"/>,
+    /// slower reflection calls (<c>MethodInfo.Invoke</c>,
     /// <c>PropertyInfo.GetValue</c>, <c>MethodInfo.MakeGenericMethod</c>) with
     /// compiled expression trees that run nearly as fast as direct calls.
     /// </summary>

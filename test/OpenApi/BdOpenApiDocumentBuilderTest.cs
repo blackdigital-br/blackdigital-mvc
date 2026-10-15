@@ -112,8 +112,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            Assert.NotNull(doc.Components.SecuritySchemes);
-            Assert.True(doc.Components.SecuritySchemes.ContainsKey("Bearer"));
+            Assert.NotNull(doc.Components!.SecuritySchemes);
+            Assert.True(doc.Components!.SecuritySchemes.ContainsKey("Bearer"));
         }
 
         [Fact]
@@ -171,7 +171,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            var productTag = doc.Tags.FirstOrDefault(t => t.Name == "Products");
+            var productTag = doc.Tags!.FirstOrDefault(t => t.Name == "Products");
             Assert.NotNull(productTag);
             Assert.Equal("Product management endpoints.", productTag.Description);
         }
@@ -184,7 +184,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             // ICategoryService has no name → "Categories" (friendly plural)
-            var categoryTag = doc.Tags.FirstOrDefault(t => t.Name == "Categories");
+            var categoryTag = doc.Tags!.FirstOrDefault(t => t.Name == "Categories");
             Assert.NotNull(categoryTag);
         }
 
@@ -196,7 +196,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.Equal("List Products", op.Summary);
         }
 
@@ -208,7 +208,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.Equal("Returns all products.", op.Description);
         }
 
@@ -220,7 +220,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products/{id}"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.Equal("Get By Id", op.Summary);
         }
 
@@ -262,7 +262,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products/{id}"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.NotNull(op.Parameters);
             var pathParam = op.Parameters.FirstOrDefault(p => p.Name == "id");
             Assert.NotNull(pathParam);
@@ -278,9 +278,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Post];
+            var op = path!.Operations![HttpMethod.Post];
             Assert.NotNull(op.RequestBody);
-            Assert.True(op.RequestBody.Content.ContainsKey("application/json"));
+            Assert.True(op.RequestBody!.Content!.ContainsKey("application/json"));
         }
 
         [Fact]
@@ -291,7 +291,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products/search"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.NotNull(op.Parameters);
             var searchParam = op.Parameters.FirstOrDefault(p => p.Name == "Search");
             var pageParam = op.Parameters.FirstOrDefault(p => p.Name == "Page");
@@ -309,9 +309,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Get];
-            Assert.True(op.Responses.ContainsKey("200"));
-            var response = op.Responses["200"];
+            var op = path!.Operations![HttpMethod.Get];
+            Assert.True(op.Responses!.ContainsKey("200"));
+            var response = op.Responses!["200"];
             Assert.NotNull(response.Content);
             Assert.True(response.Content.ContainsKey("application/json"));
         }
@@ -324,8 +324,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products/ping"];
-            var op = path.Operations[HttpMethod.Get];
-            Assert.True(op.Responses.ContainsKey("204"));
+            var op = path!.Operations![HttpMethod.Get];
+            Assert.True(op.Responses!.ContainsKey("204"));
         }
 
         [Fact]
@@ -336,8 +336,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products/{id}"];
-            var op = path.Operations[HttpMethod.Delete];
-            Assert.True(op.Responses.ContainsKey("204"));
+            var op = path!.Operations![HttpMethod.Delete];
+            Assert.True(op.Responses!.ContainsKey("204"));
         }
 
         [Fact]
@@ -348,7 +348,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Post];
+            var op = path!.Operations![HttpMethod.Post];
             Assert.NotNull(op.Security);
             Assert.NotEmpty(op.Security);
         }
@@ -361,7 +361,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.True(op.Security == null || op.Security.Count == 0);
         }
 
@@ -373,7 +373,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/secure/open"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             // ISecureService has authorize: true, so even "open" requires auth
             Assert.NotNull(op.Security);
             Assert.NotEmpty(op.Security);
@@ -387,7 +387,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/secure/data"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             // ISecureService has policy "Admin", and data action has policy "Read"
             Assert.NotNull(op.Security);
             Assert.NotEmpty(op.Security);
@@ -400,9 +400,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            Assert.NotNull(doc.Components.Schemas);
+            Assert.NotNull(doc.Components!.Schemas);
             // ProductDto should be registered as a component schema
-            Assert.NotEmpty(doc.Components.Schemas);
+            Assert.NotEmpty(doc.Components!.Schemas);
         }
 
         [Fact]
@@ -413,7 +413,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
             Assert.Equal("IProductService_GetAllAsync", op.OperationId);
         }
 
@@ -425,8 +425,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/products"];
-            Assert.True(path.Operations.ContainsKey(HttpMethod.Get));
-            Assert.True(path.Operations.ContainsKey(HttpMethod.Post));
+            Assert.True(path!.Operations!.ContainsKey(HttpMethod.Get));
+            Assert.True(path!.Operations!.ContainsKey(HttpMethod.Post));
         }
 
         // --- [Obsolete] deprecation tests ---
@@ -439,7 +439,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             var path = doc.Paths["/api/legacy"];
-            var op = path.Operations[HttpMethod.Get];
+            var op = path!.Operations![HttpMethod.Get];
 
             Assert.True(op.Deprecated);
         }
@@ -451,7 +451,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            var legacyTag = doc.Tags.FirstOrDefault(t => t.Name == "Legacy");
+            var legacyTag = doc.Tags!.FirstOrDefault(t => t.Name == "Legacy");
             Assert.NotNull(legacyTag);
             Assert.Contains("deprecated", legacyTag.Description, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Use IProductService instead.", legacyTag.Description);
@@ -465,11 +465,11 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var doc = builder.Build();
 
             // Active method — not deprecated.
-            var activeOp = doc.Paths["/api/mixed/active"].Operations[HttpMethod.Get];
+            var activeOp = doc.Paths["/api/mixed/active"]!.Operations![HttpMethod.Get];
             Assert.False(activeOp.Deprecated);
 
             // Obsolete method — deprecated.
-            var oldOp = doc.Paths["/api/mixed/old"].Operations[HttpMethod.Get];
+            var oldOp = doc.Paths["/api/mixed/old"]!.Operations![HttpMethod.Get];
             Assert.True(oldOp.Deprecated);
         }
 
@@ -480,7 +480,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            var oldOp = doc.Paths["/api/mixed/old"].Operations[HttpMethod.Get];
+            var oldOp = doc.Paths["/api/mixed/old"]!.Operations![HttpMethod.Get];
             Assert.Contains("Use GetActiveAsync instead.", oldOp.Description);
         }
 
@@ -491,7 +491,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var doc = builder.Build();
 
-            var op = doc.Paths["/api/products"].Operations[HttpMethod.Get];
+            var op = doc.Paths["/api/products"]!.Operations![HttpMethod.Get];
             Assert.False(op.Deprecated);
         }
 

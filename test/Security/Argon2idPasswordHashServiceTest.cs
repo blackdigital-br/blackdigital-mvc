@@ -94,11 +94,11 @@ namespace BlackDigital.AspNet.Test.Security
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public void HashPassword_WhenPasswordIsNullOrEmpty_ShouldThrow(string password)
+        public void HashPassword_WhenPasswordIsNullOrEmpty_ShouldThrow(string? password)
         {
             var service = CreateService();
 
-            var ex = Assert.Throws<ArgumentException>(() => service.HashPassword(password));
+            var ex = Assert.Throws<ArgumentException>(() => service.HashPassword(password!));
             Assert.Equal("password", ex.ParamName);
         }
 
@@ -138,12 +138,12 @@ namespace BlackDigital.AspNet.Test.Security
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public void VerifyPassword_WhenPasswordIsNullOrEmpty_ShouldReturnFalse(string password)
+        public void VerifyPassword_WhenPasswordIsNullOrEmpty_ShouldReturnFalse(string? password)
         {
             var service = CreateService();
             var hash = service.HashPassword("valid");
 
-            var result = service.VerifyPassword(password, hash);
+            var result = service.VerifyPassword(password!, hash);
 
             Assert.False(result);
         }
@@ -151,11 +151,11 @@ namespace BlackDigital.AspNet.Test.Security
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public void VerifyPassword_WhenHashIsNullOrEmpty_ShouldReturnFalse(string hash)
+        public void VerifyPassword_WhenHashIsNullOrEmpty_ShouldReturnFalse(string? hash)
         {
             var service = CreateService();
 
-            var result = service.VerifyPassword("valid", hash);
+            var result = service.VerifyPassword("valid", hash!);
 
             Assert.False(result);
         }

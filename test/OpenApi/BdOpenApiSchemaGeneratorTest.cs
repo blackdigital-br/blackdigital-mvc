@@ -249,9 +249,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var pocoSchema = Assert.IsType<OpenApiSchema>(component);
 
             Assert.NotNull(pocoSchema.Properties);
-            Assert.Contains("name", pocoSchema.Properties.Keys);
-            Assert.Contains("age", pocoSchema.Properties.Keys);
-            Assert.Contains("isActive", pocoSchema.Properties.Keys);
+            Assert.Contains("name", pocoSchema.Properties!.Keys);
+            Assert.Contains("age", pocoSchema.Properties!.Keys);
+            Assert.Contains("isActive", pocoSchema.Properties!.Keys);
         }
 
         [Fact]
@@ -300,7 +300,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var components = gen.GetComponentSchemas();
             var pocoSchema = Assert.IsType<OpenApiSchema>(Assert.Single(components.Values));
 
-            Assert.Contains("custom_name", pocoSchema.Properties.Keys);
+            Assert.Contains("custom_name", pocoSchema.Properties!.Keys);
         }
 
         [Fact]
@@ -312,7 +312,7 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var components = gen.GetComponentSchemas();
             var pocoSchema = Assert.IsType<OpenApiSchema>(Assert.Single(components.Values));
 
-            Assert.Contains("data_member_name", pocoSchema.Properties.Keys);
+            Assert.Contains("data_member_name", pocoSchema.Properties!.Keys);
         }
 
         [Fact]
