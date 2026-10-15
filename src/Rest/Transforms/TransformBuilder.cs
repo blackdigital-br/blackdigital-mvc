@@ -19,8 +19,14 @@ namespace BlackDigital.AspNet.Rest.Transforms
         /// <param name="key">The key that identifies the transform.</param>
         /// <param name="rule">The rule instance to register.</param>
         /// <returns>The current builder instance for chaining.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when a rule with the same key, version and direction is already
+        /// registered. Two rules for the same action and direction may not share
+        /// the same version; use distinct versions to chain transformations.
+        /// </exception>
         public TransformBuilder AddRule(TransformKey key, ITransformRule rule)
         {
+            EnsureNoDuplicateVersion(key);
             _rulesInstances.Add(key, rule);
             return this;
         }
@@ -95,11 +101,17 @@ namespace BlackDigital.AspNet.Rest.Transforms
         /// <param name="ruleType">The rule type to register. Must implement <see cref="ITransformRule"/>.</param>
         /// <returns>The current builder instance for chaining.</returns>
         /// <exception cref="ArgumentException">Thrown when <paramref name="ruleType"/> does not implement <see cref="ITransformRule"/>.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when a rule with the same key, version and direction is already
+        /// registered. Two rules for the same action and direction may not share
+        /// the same version; use distinct versions to chain transformations.
+        /// </exception>
         public TransformBuilder AddRule(TransformKey key, Type ruleType)
         {
             if (!typeof(ITransformRule).IsAssignableFrom(ruleType))
                 throw new ArgumentException($"Type '{ruleType.FullName}' does not implement ITransformRule.");
 
+            EnsureNoDuplicateVersion(key);
             _rulesType.Add(key, ruleType);
             return this;
         }
@@ -233,5 +245,25 @@ namespace BlackDigital.AspNet.Rest.Transforms
         internal Dictionary<TransformKey, ITransformRule> GetRulesInstances() => _rulesInstances;
 
         internal Dictionary<TransformKey, Type> GetRulesType() => _rulesType;
+
+        /// <summary>
+        /// Validates that no rule with the same key, version and direction has
+        /// already been registered (either as an instance or as a type). Two
+        /// rules for the same action and direction may not share the same
+        /// version because the execution order within a version would be
+        /// undefined; use distinct versions to chain transformations.
+        /// </summary>
+        /// <param name="key">The key being registered.</param>
+        /// <exception cref="InvalidOperationException">Thrown when a duplicate version is detected.</exception>
+        private void EnsureNoDuplicateVersion(TransformKey key)
+        {
+            if (_rulesInstances.ContainsKey(key) || _rulesType.ContainsKey(key))
+            {
+                throw new InvalidOperationException(
+                    $"A transform rule for key '{key.Key}', version '{key.Version}' and direction '{key.Direction}' " +
+                    $"is already registered. Two rules for the same action and direction may not share the same version; " +
+                    $"use distinct versions to chain transformations.");
+            }
+        }
     }
 }

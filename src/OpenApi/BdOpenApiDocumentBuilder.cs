@@ -128,20 +128,33 @@ namespace BlackDigital.AspNet.OpenApi
             {
                 var serviceAttr = iface.GetCustomAttribute<ServiceAttribute>()!;
 
-                var tagName = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceName())
-                    ? serviceAttr.GetServiceName()
+                var tagName = !string.IsNullOrWhiteSpace(ServiceAttributeHelper.GetName(serviceAttr))
+                    ? ServiceAttributeHelper.GetName(serviceAttr)
                     : FriendlyGroupName(iface);
 
-                var tagDescription = !string.IsNullOrWhiteSpace(serviceAttr.GetServiceDescription())
-                    ? serviceAttr.GetServiceDescription()
+                var tagDescription = !string.IsNullOrWhiteSpace(ServiceAttributeHelper.GetDescription(serviceAttr))
+                    ? ServiceAttributeHelper.GetDescription(serviceAttr)
                     : $"Endpoints exposed by {iface.FullName ?? iface.Name}.";
+
+                // When the service interface carries [Obsolete], surface that fact
+                // in the tag description so consumers see the deprecation notice in
+                // the documentation sidebar. Individual operations are also marked
+                // deprecated below.
+                var serviceObsolete = iface.GetCustomAttribute<ObsoleteAttribute>();
+                if (serviceObsolete != null)
+                {
+                    var suffix = string.IsNullOrWhiteSpace(serviceObsolete.Message)
+                        ? " (deprecated)"
+                        : $" (deprecated: {serviceObsolete.Message})";
+                    tagDescription += suffix;
+                }
 
                 var tag = new OpenApiTag
                 {
                     Name = tagName,
                     Description = tagDescription
                 };
-                var reference = new OpenApiTagReference(tag.Name, document);
+                var reference = new OpenApiTagReference(tagName!, document);
                 tagsByInterface[iface] = (tag, reference);
             }
 
@@ -156,6 +169,10 @@ namespace BlackDigital.AspNet.OpenApi
                 var baseRoute = ServiceAttributeHelper.GetRoute(serviceAttr).Trim('/');
                 var (_, serviceTagRef) = tagsByInterface[iface];
 
+                // A service-level [Obsolete] deprecates every operation of the
+                // interface, even when the individual method is not marked.
+                var serviceIsDeprecated = iface.GetCustomAttribute<ObsoleteAttribute>() != null;
+
                 foreach (var method in iface.GetMethods())
                 {
                     var actionAttr = method.GetCustomAttribute<ActionAttribute>();
@@ -163,12 +180,33 @@ namespace BlackDigital.AspNet.OpenApi
 
                     var actionRoute = ActionAttributeHelper.GetRoute(actionAttr).Trim('/');
                     var opHttpMethod = ActionAttributeHelper.GetOperationType(actionAttr);
+                    var actionName = ActionAttributeHelper.GetName(actionAttr);
+                    var actionDescription = ActionAttributeHelper.GetDescription(actionAttr);
+
+                    // A method-level [Obsolete] deprecates only that operation.
+                    var methodObsolete = method.GetCustomAttribute<ObsoleteAttribute>();
+                    var isDeprecated = serviceIsDeprecated || methodObsolete != null;
+
+                    // Append the obsolete message to the operation description when
+                    // present, so consumers see the reason directly in the docs.
+                    if (methodObsolete != null && !string.IsNullOrWhiteSpace(methodObsolete.Message))
+                    {
+                        actionDescription = string.IsNullOrWhiteSpace(actionDescription)
+                            ? $"Deprecated: {methodObsolete.Message}"
+                            : $"{actionDescription} (Deprecated: {methodObsolete.Message})";
+                    }
                     // Authorization is required when declared at the action level OR
-                    // inherited from the service-level [ServiceAttribute], matching
-                    // the runtime check in RestMiddleware.
+                    // inherited from the service-level [ServiceAttribute], OR when a
+                    // policy is defined at either level — matching the runtime check
+                    // in RestMiddleware (service policy + action policy are combined
+                    // with a dot separator, e.g. "Category.Read").
                     var actionRequiresAuth = ActionAttributeHelper.GetAuthorize(actionAttr);
-                    var serviceRequiresAuth = serviceAttr?.Authorize == true;
-                    var requiresAuth = actionRequiresAuth || serviceRequiresAuth;
+                    var serviceRequiresAuth = ServiceAttributeHelper.GetAuthorize(serviceAttr);
+                    var actionPolicy = ActionAttributeHelper.GetPolicy(actionAttr);
+                    var servicePolicy = ServiceAttributeHelper.GetPolicy(serviceAttr);
+                    var hasPolicy = !string.IsNullOrWhiteSpace(servicePolicy)
+                                 || !string.IsNullOrWhiteSpace(actionPolicy);
+                    var requiresAuth = actionRequiresAuth || serviceRequiresAuth || hasPolicy;
 
                     var fullRoute = "/" + string.Join("/",
                         new[] { baseRoute, actionRoute }.Where(s => !string.IsNullOrWhiteSpace(s)));
@@ -182,8 +220,12 @@ namespace BlackDigital.AspNet.OpenApi
 
                     var operation = new OpenApiOperation
                     {
-                        Summary = FormatMethodName(method.Name),
+                        Summary = !string.IsNullOrWhiteSpace(actionName)
+                            ? actionName
+                            : FormatMethodName(method.Name),
+                        Description = actionDescription,
                         OperationId = method.DeclaringType?.Name + "_" + method.Name,
+                        Deprecated = isDeprecated,
                         Responses = new OpenApiResponses(),
                         Tags = new HashSet<OpenApiTagReference> { serviceTagRef }
                     };

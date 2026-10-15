@@ -1505,7 +1505,7 @@ Para cada requisição, o middleware REST determina a versão solicitada verific
 
 1. **Query string**: `?api-version=2024-01-01`
 2. **Header**: `x-api-version: 2024-01-01`
-3. **Fallback padrão**: `1970-01-01` (quando nenhum dos dois está presente)
+3. **Fallback padrão**: string vazia (quando nenhum dos dois está presente — nenhuma transformação é aplicada)
 
 ### Encadeamento de Regras
 
@@ -1515,6 +1515,46 @@ Para cada requisição, o middleware REST determina a versão solicitada verific
 - **Direção de saída (Output)**: ordem decrescente (mais nova → mais antiga), de modo que o corpo da resposta de-evolui do modelo atual de volta à versão solicitada.
 
 Uma regra registrada com `TransformDirection.Both` corresponde a consultas de `Input` e `Output`.
+
+### Regras Declarativas com o Atributo `[Transform]`
+
+Além de registrar regras de forma imperativa em `Program.cs` via `AddTransform`, você pode declarar uma transformação diretamente no método da ação usando o atributo `[Transform]`. A regra é registrada automaticamente quando o `AddRestServices` varre as interfaces de serviço:
+
+```csharp
+[Service("api/users")]
+public interface IUserService
+{
+    [Action("", method: RestMethod.Post)]
+    [Transform(typeof(UserV1ToV2Rule), "2024-01-01", TransformDirection.Input)]
+    Task<User> CreateAsync([Body] User user);
+
+    [Action("", method: RestMethod.Get)]
+    [Transform(typeof(UserV2ToV1Rule), "2024-01-01", TransformDirection.Output)]
+    Task<List<User>> GetAllAsync();
+}
+```
+
+A chave da ação é derivada automaticamente a partir da rota base do serviço e da rota da ação (compatível com a chave usada em tempo de execução pelo middleware REST), então você não precisa especificá-la manualmente.
+
+`[Transform]` e `AddTransform` compartilham o mesmo registro `TransformBuilder`, então você pode misturar regras declarativas e programáticas livremente.
+
+### Sem Versões Duplicadas
+
+Para a mesma chave de ação e direção, **duas regras não podem compartilhar a mesma versão**. Como a ordem de execução dentro de uma única versão seria indefinida, o framework lança `InvalidOperationException` quando você tenta registrar uma tupla `(chave, versão, direção)` duplicada. Use versões distintas para encadear transformações:
+
+```csharp
+// OK — versões diferentes encadeiam em ordem
+config.AddInputRule<Step1Rule>("POST:api/users/", "2024-01-01");
+config.AddInputRule<Step2Rule>("POST:api/users/", "2024-06-01");
+
+// Lança InvalidOperationException — mesma chave, versão e direção
+config.AddInputRule<Step1Rule>("POST:api/users/", "2024-01-01");
+config.AddInputRule<Step2Rule>("POST:api/users/", "2024-01-01");
+```
+
+### Por que Chaves com Curinga Não São Suportadas
+
+O sistema de transformação é intencionalmente **limitado a ações individuais** e não suporta chaves com curinga (ex.: `POST:api/*`). As transformações alteram os modelos de entrada e saída de uma ação específica quando seu contrato evolui entre versões. Aplicar uma regra em várias ações por curinga é perigoso porque pode alterar silenciosamente os modelos de endpoints não relacionados, produzindo contratos inconsistentes ou quebrados. Se você precisar da mesma transformação em várias ações, registre-a explicitamente para cada chave de ação.
 
 ### Hierarquia de Interfaces das Regras
 

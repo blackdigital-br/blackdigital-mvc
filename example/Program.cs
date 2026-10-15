@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Example.Services;
+using BlackDigital.AspNet.Example.Services;
 using BlackDigital.AspNet.Example.Transform;
 using BlackDigital.AspNet.OpenApi;
 using BlackDigital.AspNet.Rest;
@@ -11,7 +11,7 @@ builder.Services.AddRazorPages();
 
 // Novo approach com middleware - substitui a geração dinâmica de controllers
 builder.Services.AddRestServices(restService =>
-    restService.AddService<IUser, UserImplemention>());
+    restService.AddService<IUser, UserImplementation>());
 
 // Adiciona as configurações padrão do MVC (model binders, constraints)
 builder.Services.AddRestMvcOptions();
@@ -20,7 +20,6 @@ builder.Services.AddRestMvcOptions();
 builder.Services.AddTransform(transformConfig =>
     transformConfig.AddRule("POST:api/user/", "2025-10-08", new SaveUserTransformRule("input"))
                    .AddRule("POST:api/user/", "2025-10-08", new SaveUserTransformRule("output"), TransformDirection.Output)
-                   .AddInputRule<OldSaveUsertoSaveUserTransformRule>("POST:api/user/", "2020-10-10")
                    .AddOutputRule<SaveUserIdTransformRule>("POST:api/user/", "2020-10-10")
 );
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace BlackDigital.AspNet.Rest.Transforms
 {
@@ -18,10 +19,19 @@ namespace BlackDigital.AspNet.Rest.Transforms
         public static IServiceCollection AddTransform(this IServiceCollection services,
             Func<TransformBuilder, TransformBuilder> configBuilder)
         {
-            var builder = new TransformBuilder();
+            // Reuse a TransformBuilder already registered by AddRestServices
+            // (which scans for [Transform] attributes) so that programmatic and
+            // attribute-based rules share the same registry.
+            var existing = services.FirstOrDefault(d => d.ServiceType == typeof(TransformBuilder))
+                ?.ImplementationInstance as TransformBuilder;
+
+            var builder = existing ?? new TransformBuilder();
             builder = configBuilder(builder);
-            services.AddSingleton(builder);
-            services.AddScoped<TransformManager>();
+
+            if (existing == null)
+                services.AddSingleton(builder);
+
+            services.TryAddScoped<TransformManager>();
 
             return services;
         }

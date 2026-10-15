@@ -2,10 +2,10 @@ namespace BlackDigital.AspNet.Example.Models
 {
     public class OldSaveUser
     {
-        public string N { get; set; }
+        public string N { get; set; } = string.Empty;
 
-        public string E { get; set; }
+        public string E { get; set; } = string.Empty;
 
-        public string P { get; set; }
+        public string P { get; set; } = string.Empty;
     }
 }

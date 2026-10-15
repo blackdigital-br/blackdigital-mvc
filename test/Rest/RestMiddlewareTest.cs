@@ -1,8 +1,10 @@
 using BlackDigital.AspNet.Rest;
+using BlackDigital.Rest;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Reflection;
 using System.Security.Claims;
@@ -37,7 +39,7 @@ namespace BlackDigital.AspNet.Test.Rest
         }
 
         private RestMiddleware CreateMiddleware(IServiceCollection services)
-            => new RestMiddleware(_mockNext.Object, new RestRouteRegistry(services), _mockLogger.Object, _mockEnvironment.Object);
+            => new RestMiddleware(_mockNext.Object, new RestRouteRegistry(services), _mockLogger.Object, _mockEnvironment.Object, Options.Create(new RestOptions()));
 
         private void SetupHttpContextMocks()
         {
@@ -59,7 +61,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new RestMiddleware(null!, new RestRouteRegistry(new ServiceCollection()), _mockLogger.Object, _mockEnvironment.Object));
+                new RestMiddleware(null!, new RestRouteRegistry(new ServiceCollection()), _mockLogger.Object, _mockEnvironment.Object, Options.Create(new RestOptions())));
         }
 
         [Fact]
@@ -67,7 +69,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new RestMiddleware(_mockNext.Object, null!, _mockLogger.Object, _mockEnvironment.Object));
+                new RestMiddleware(_mockNext.Object, null!, _mockLogger.Object, _mockEnvironment.Object, Options.Create(new RestOptions())));
         }
 
         [Fact]
@@ -188,18 +190,25 @@ namespace BlackDigital.AspNet.Test.Rest
             Assert.Equal("/api/test/action", result);
         }
 
+        private static RestRouteEntry CreateRouteEntry(string pattern)
+        {
+            var service = ServiceDescriptor.Singleton(typeof(object), new object());
+            var method = typeof(object).GetMethod(nameof(object.ToString))!;
+            return new RestRouteEntry(pattern, service, method);
+        }
+
         [Fact]
         public void MatchesPattern_WhenExactMatch_ShouldReturnTrue()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test", "/api/test", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.True((bool)result!);
@@ -209,14 +218,14 @@ namespace BlackDigital.AspNet.Test.Rest
         public void MatchesPattern_WhenDifferentSegmentCount_ShouldReturnFalse()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test/extra");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test", "/api/test/extra", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.False((bool)result!);
@@ -226,14 +235,14 @@ namespace BlackDigital.AspNet.Test.Rest
         public void MatchesPattern_WhenParameterInRoute_ShouldExtractParameter()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test/123".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test/{id}");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test/123", "/api/test/{id}", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.True((bool)result!);
@@ -359,6 +368,292 @@ namespace BlackDigital.AspNet.Test.Rest
             // Assert
             Assert.NotNull(result);
             Assert.IsType<JsonSerializerOptions>(result);
+        }
+
+        [Theory]
+        [InlineData(null, null, null)]
+        [InlineData("", "", null)]
+        [InlineData("  ", "   ", null)]
+        [InlineData("Category", null, "Category")]
+        [InlineData(null, "Read", "Read")]
+        [InlineData("Category", "Read", "Category.Read")]
+        [InlineData("Category", "", "Category")]
+        [InlineData("", "Read", "Read")]
+        public void CombinePolicies_ShouldReturnExpectedValue(string? servicePolicy, string? actionPolicy, string? expected)
+        {
+            // Arrange
+            var combinePoliciesMethod = typeof(RestMiddleware)
+                .GetMethod("CombinePolicies", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            var result = combinePoliciesMethod?.Invoke(null, new object?[] { servicePolicy, actionPolicy });
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        // --- CancellationToken binding ---
+
+        public interface ICancellationTokenService
+        {
+            Task<string> GetDataAsync(CancellationToken cancellationToken);
+        }
+
+        [Fact]
+        public async Task PrepareMethodParameters_WhenParameterIsCancellationToken_ShouldBindRequestAborted()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var method = typeof(ICancellationTokenService).GetMethod(nameof(ICancellationTokenService.GetDataAsync))!;
+
+            var aborted = new CancellationTokenSource().Token;
+            _mockHttpContext.Setup(x => x.RequestAborted).Returns(aborted);
+
+            var prepareMethod = typeof(RestMiddleware)
+                .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            var values = new object?[1];
+
+            // Act
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "GET:api/test", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
+
+            // Assert
+            Assert.Equal(aborted, values[0]);
+        }
+
+        // --- CacheAttribute / ApplyCacheHeaders ---
+
+        [Fact]
+        public void ApplyCacheHeaders_WhenPublic_ShouldSetPublicMaxAge()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var cacheAttr = new CacheAttribute(300);
+
+            var headers = new HeaderDictionary();
+            _mockResponse.Setup(x => x.Headers).Returns(headers);
+
+            var applyCache = typeof(RestMiddleware)
+                .GetMethod("ApplyCacheHeaders", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            applyCache?.Invoke(null, new object[] { _mockHttpContext.Object, cacheAttr });
+
+            // Assert
+            Assert.Equal("public, max-age=300", headers["Cache-Control"].ToString());
+        }
+
+        [Fact]
+        public void ApplyCacheHeaders_WhenClientLocation_ShouldSetPrivateMaxAge()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var cacheAttr = new CacheAttribute(60) { Location = CacheLocation.Client };
+
+            var headers = new HeaderDictionary();
+            _mockResponse.Setup(x => x.Headers).Returns(headers);
+
+            var applyCache = typeof(RestMiddleware)
+                .GetMethod("ApplyCacheHeaders", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            applyCache?.Invoke(null, new object[] { _mockHttpContext.Object, cacheAttr });
+
+            // Assert
+            Assert.Equal("private, max-age=60", headers["Cache-Control"].ToString());
+        }
+
+        [Fact]
+        public void ApplyCacheHeaders_WhenNoStore_ShouldSetNoStore()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var cacheAttr = new CacheAttribute(0) { NoStore = true };
+
+            var headers = new HeaderDictionary();
+            _mockResponse.Setup(x => x.Headers).Returns(headers);
+
+            var applyCache = typeof(RestMiddleware)
+                .GetMethod("ApplyCacheHeaders", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            applyCache?.Invoke(null, new object[] { _mockHttpContext.Object, cacheAttr });
+
+            // Assert
+            Assert.Equal("no-store", headers["Cache-Control"].ToString());
+        }
+
+        // --- RateLimitAttribute / CheckRateLimitAsync ---
+
+        [Fact]
+        public async Task CheckRateLimitAsync_WhenUnderLimit_ShouldReturnTrue()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddMemoryCache();
+            var middleware = CreateMiddleware(services);
+            var provider = services.BuildServiceProvider();
+            _mockHttpContext.Setup(x => x.RequestServices).Returns(provider);
+            _mockHttpContext.Setup(x => x.Connection.RemoteIpAddress).Returns(System.Net.IPAddress.Parse("127.0.0.1"));
+
+            var rateLimit = new RateLimitAttribute(5, 60);
+            var checkRateLimit = typeof(RestMiddleware)
+                .GetMethod("CheckRateLimitAsync", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            var result = await (Task<bool>)checkRateLimit!
+                .Invoke(null, new object[] { _mockHttpContext.Object, "GET:api/test", rateLimit })!;
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckRateLimitAsync_WhenExceedsLimit_ShouldReturnFalse()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddMemoryCache();
+            var middleware = CreateMiddleware(services);
+            var provider = services.BuildServiceProvider();
+            _mockHttpContext.Setup(x => x.RequestServices).Returns(provider);
+            _mockHttpContext.Setup(x => x.Connection.RemoteIpAddress).Returns(System.Net.IPAddress.Parse("127.0.0.1"));
+
+            var rateLimit = new RateLimitAttribute(1, 60);
+            var checkRateLimit = typeof(RestMiddleware)
+                .GetMethod("CheckRateLimitAsync", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // First call succeeds.
+            await (Task<bool>)checkRateLimit!
+                .Invoke(null, new object[] { _mockHttpContext.Object, "GET:api/limited", rateLimit })!;
+
+            // Second call should be rejected.
+            var result = await (Task<bool>)checkRateLimit
+                .Invoke(null, new object[] { _mockHttpContext.Object, "GET:api/limited", rateLimit })!;
+
+            // Assert
+            Assert.False(result);
+        }
+
+        // --- IAsyncEnumerable streaming ---
+
+        [Fact]
+        public void IsAsyncEnumerable_WhenIAsyncEnumerable_ShouldReturnTrueAndElementType()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var isAsyncEnumerable = typeof(RestMiddleware)
+                .GetMethod("IsAsyncEnumerable", BindingFlags.NonPublic | BindingFlags.Static);
+
+            async IAsyncEnumerable<int> Generate()
+            {
+                yield return 1;
+                await Task.CompletedTask;
+            }
+
+            // Act
+            var parameters = new object?[] { Generate(), null, null };
+            var result = (bool)isAsyncEnumerable!.Invoke(null, parameters)!;
+
+            // Assert
+            Assert.True(result);
+            Assert.Equal(typeof(int), parameters[2]);
+        }
+
+        [Fact]
+        public void IsAsyncEnumerable_WhenNotIAsyncEnumerable_ShouldReturnFalse()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var isAsyncEnumerable = typeof(RestMiddleware)
+                .GetMethod("IsAsyncEnumerable", BindingFlags.NonPublic | BindingFlags.Static);
+
+            // Act
+            var parameters = new object?[] { new List<int> { 1, 2, 3 }, null, null };
+            var result = (bool)isAsyncEnumerable!.Invoke(null, parameters)!;
+
+            // Assert
+            Assert.False(result);
+        }
+
+        // --- IFormFile binding ---
+
+        public interface IUploadService
+        {
+            Task UploadAsync([Body] IFormFile file);
+            Task UploadManyAsync([Body] IFormFileCollection files);
+        }
+
+        [Fact]
+        public async Task PrepareMethodParameters_WhenBodyIsIFormFile_ShouldBindFromFormFiles()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var method = typeof(IUploadService).GetMethod(nameof(IUploadService.UploadAsync))!;
+
+            var file = new Mock<IFormFile>();
+            var formFiles = new FormFileCollection { file.Object };
+            var formCollection = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(), formFiles);
+            _mockRequest.Setup(x => x.Form).Returns(formCollection);
+
+            var prepareMethod = typeof(RestMiddleware)
+                .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            var values = new object?[1];
+
+            // Act
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
+
+            // Assert
+            Assert.Same(file.Object, values[0]);
+        }
+
+        [Fact]
+        public async Task PrepareMethodParameters_WhenBodyIsIFormFileCollection_ShouldBindAllFiles()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var middleware = CreateMiddleware(services);
+            var method = typeof(IUploadService).GetMethod(nameof(IUploadService.UploadManyAsync))!;
+
+            var file1 = new Mock<IFormFile>();
+            var file2 = new Mock<IFormFile>();
+            var formFiles = new FormFileCollection { file1.Object, file2.Object };
+            var formCollection = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(), formFiles);
+            _mockRequest.Setup(x => x.Form).Returns(formCollection);
+
+            var prepareMethod = typeof(RestMiddleware)
+                .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            var values = new object?[1];
+
+            // Act
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
+
+            // Assert
+            var bound = Assert.IsType<FormFileCollection>(values[0]);
+            Assert.Equal(2, bound.Count);
+        }
+
+        // --- RestOptions defaults ---
+
+        [Fact]
+        public void RestOptions_Defaults_ShouldHaveLoggingDisabled()
+        {
+            var options = new RestOptions();
+            Assert.False(options.EnableRequestLogging);
+            Assert.False(options.LogRequestBody);
+            Assert.False(options.LogResponseBody);
         }
     }
 }

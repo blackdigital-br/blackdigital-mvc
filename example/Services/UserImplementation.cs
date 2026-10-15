@@ -2,7 +2,7 @@ using BlackDigital.AspNet.Example.Models;
 
 namespace BlackDigital.AspNet.Example.Services
 {
-    public class UserImplemention : IUser
+    public class UserImplementation : IUser
     {
         public Task<string> GetUserAsync(string name)
         {

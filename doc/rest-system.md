@@ -258,7 +258,7 @@ builder.Services.AddTransform(config =>
 The rule **key** is built automatically from the action's `Method:BaseRoute/ActionRoute` (e.g. `POST:api/users/`). The **version** is selected per request from:
 1. Query string `?api-version=2024-01-01`
 2. Header `x-api-version: 2024-01-01`
-3. Fallback default: `1970-01-01`
+3. Fallback default: empty string (no transformations applied unless a version is explicitly requested)
 
 ### Defining Transformation Rules
 
@@ -343,7 +343,7 @@ The client specifies the desired API version, and the system applies the appropr
 // → Same behavior as the query string
 ```
 
-When no version is provided, the system defaults to `1970-01-01`, meaning all registered transformations (with newer versions) are applied.
+When no version is provided, the system defaults to an empty string, meaning no registered transformations are applied (only rules with a version strictly greater than the requested version are applied).
 
 ### Practical Example: API Evolution
 
@@ -672,6 +672,83 @@ Add a `CancellationToken` parameter to any action method — the middleware auto
 Task<Stream> ExportAsync(CancellationToken cancellationToken);
 ```
 
+**File Uploads (`IFormFile` / `IFormFileCollection`):**
+
+A `[Body]` parameter typed as `IFormFile` or `IFormFileCollection` is bound from the multipart form files instead of being JSON-deserialized:
+
+```csharp
+[Action("upload", method: RestMethod.Post)]
+Task UploadAsync([Body] IFormFile file);
+
+[Action("upload-many", method: RestMethod.Post)]
+Task UploadManyAsync([Body] IFormFileCollection files);
+```
+
+**Streaming Responses (`IAsyncEnumerable<T>`):**
+
+Action methods that return `IAsyncEnumerable<T>` (or `Task<IAsyncEnumerable<T>>`) are streamed directly to the response body without materializing the whole collection in memory:
+
+```csharp
+[Action("stream", method: RestMethod.Get)]
+async IAsyncEnumerable<DataPoint> StreamAsync()
+{
+    for (int i = 0; i < 1000; i++)
+    {
+        yield return new DataPoint(i);
+        await Task.Delay(10);
+    }
+}
+```
+
+**Response Caching (`[Cache]`):**
+
+Apply the `[Cache]` attribute to an action to emit a `Cache-Control` response header. The constructor takes the cache duration in seconds; `Location` controls `public`/`private` scope and `NoStore` emits `no-store`:
+
+```csharp
+[Action("catalog", method: RestMethod.Get)]
+[Cache(300)] // public, max-age=300
+Task<List<Product>> GetCatalogAsync();
+
+[Action("profile", method: RestMethod.Get)]
+[Cache(60, Location = CacheLocation.Client)] // private, max-age=60
+Task<Profile> GetProfileAsync();
+
+[Action("live", method: RestMethod.Get)]
+[Cache(0, NoStore = true)] // no-store
+Task<LiveData> GetLiveAsync();
+```
+
+**Rate Limiting (`[RateLimit]`):**
+
+Apply `[RateLimit(limit, windowSeconds)]` to an action or a service interface. When the number of requests from the same client (identified by user id or IP address) exceeds `limit` within the window, the middleware responds with HTTP 429 Too Many Requests. The counter is stored in `IMemoryCache`:
+
+```csharp
+[Service("api/search")]
+public interface ISearchService
+{
+    // Allow 10 requests per minute per client.
+    [Action("", method: RestMethod.Get)]
+    [RateLimit(10, 60)]
+    Task<List<Result>> SearchAsync([Query] string q);
+}
+```
+
+**Request Logging (`RestOptions`):**
+
+Enable structured request logging by passing a configuration delegate to `AddRestServices`. When enabled, each matched request logs the HTTP method, path, status code, duration and operation. Optional flags include the request body in the log entry:
+
+```csharp
+builder.Services.AddRestServices(rest =>
+{
+    rest.AddService<IUserService, UserService>();
+}, options =>
+{
+    options.EnableRequestLogging = true;
+    options.LogRequestBody = true;   // include request body (off by default)
+    options.LogResponseBody = true;  // log response metadata (off by default)
+});
+```
+
 **Default Parameter Values:**
 
 Parameters with default values are supported. When a binding source does not provide a value, the declared default is used:
@@ -704,7 +781,7 @@ public async Task<User> GetUserAsync(int id)
 }
 ```
 
-Unhandled exceptions return `500 Internal Server Error` with a `RestError` payload (`{ "message", "stack" }`). The `stack` field is only populated in the Development environment.
+Unhandled exceptions return `500 Internal Server Error` with a [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc7807) payload (RFC 7807) and content type `application/problem+json`. The `stackTrace` extension field is only populated in the Development environment. `BusinessException` and `BadHttpRequestException` also return `ProblemDetails` with their respective status codes and messages.
 
 #### Built-in `Id` Type Support
 

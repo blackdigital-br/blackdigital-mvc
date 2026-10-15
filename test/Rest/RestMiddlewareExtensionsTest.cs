@@ -83,7 +83,7 @@ namespace BlackDigital.AspNet.Test.Rest
         {
             // Arrange
             var services = new ServiceCollection();
-            RestServiceBuilder capturedBuilder = null;
+            RestServiceBuilder? capturedBuilder = null;
             
             Func<RestServiceBuilder, RestServiceBuilder> builderFunc = builder =>
             {

@@ -23,6 +23,9 @@ namespace BlackDigital.AspNet.Services
         /// entry in <c>X-Forwarded-For</c> and then <c>X-Real-IP</c>.
         /// Returns <c>null</c> when no IP can be determined.
         /// </summary>
+        /// <param name="httpContext">The HTTP context accessor to read the request from.</param>
+        /// <returns>The client's IP address as a string, or <c>null</c> when it cannot be determined.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="IHttpContextAccessor.HttpContext"/> is <c>null</c>.</exception>
         public static string? GetCurrentIpAddress(this IHttpContextAccessor httpContext)
         {
             var context = httpContext.HttpContext
@@ -57,6 +60,8 @@ namespace BlackDigital.AspNet.Services
         /// Returns the JWT <c>jti</c> (token id) claim from the current
         /// authenticated user, or null when not present.
         /// </summary>
+        /// <param name="httpContext">The HTTP context accessor to read the user claims from.</param>
+        /// <returns>The token id (<c>jti</c>) claim value, or <c>null</c> when not present.</returns>
         public static string? GetCurrentTokenIdentifier(this IHttpContextAccessor httpContext)
         {
             var claims = httpContext.HttpContext?.User?.Claims;

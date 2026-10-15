@@ -1,4 +1,4 @@
-﻿using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Rest.Transforms;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -239,7 +239,7 @@ namespace BlackDigital.AspNet.Test.Rest.Transforms
         }
 
         [Fact]
-        public void AddTransform_CalledMultipleTimes_ShouldRegisterMultipleBuilders()
+        public void AddTransform_CalledMultipleTimes_ShouldRegisterSingleBuilder()
         {
             // Arrange
             var services = new ServiceCollection();
@@ -253,13 +253,14 @@ namespace BlackDigital.AspNet.Test.Rest.Transforms
             var builders = serviceProvider.GetServices<TransformBuilder>().ToList();
             var managers = serviceProvider.GetServices<TransformManager>().ToList();
 
-            // Each call to AddTransform registers a new TransformBuilder and TransformManager
-            Assert.Equal(2, builders.Count);
-            Assert.Equal(2, managers.Count);
+            // Multiple calls to AddTransform share a single TransformBuilder so
+            // that rules accumulate in one registry.
+            Assert.Single(builders);
+            Assert.Single(managers);
         }
 
         [Fact]
-        public void AddTransform_WithMultipleConfigurations_ShouldUseLastRegistration()
+        public void AddTransform_WithMultipleConfigurations_ShouldAccumulateRules()
         {
             // Arrange
             var services = new ServiceCollection();
@@ -273,10 +274,10 @@ namespace BlackDigital.AspNet.Test.Rest.Transforms
             // Assert
             var serviceProvider = services.BuildServiceProvider();
             var transformManager = serviceProvider.GetService<TransformManager>();
-            
+
             Assert.NotNull(transformManager);
-            // Only the last registration is used by TransformManager
-            Assert.False(transformManager.HasRule("test1", "1.0"));
+            // Both registrations accumulate into the same TransformBuilder.
+            Assert.True(transformManager.HasRule("test1", "1.0"));
             Assert.True(transformManager.HasRule("test2", "1.0"));
         }
     }

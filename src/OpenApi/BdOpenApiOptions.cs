@@ -153,6 +153,7 @@ namespace BlackDigital.AspNet.OpenApi
         /// request-derived <see cref="ServerUrl"/> without mutating the shared
         /// singleton options).
         /// </summary>
+        /// <returns>A new <see cref="BdOpenApiOptions"/> instance with the same values.</returns>
         public BdOpenApiOptions Clone()
         {
             var clone = new BdOpenApiOptions
@@ -169,6 +170,11 @@ namespace BlackDigital.AspNet.OpenApi
                 ScalarTitle = ScalarTitle,
                 OpenApiRoutePattern = OpenApiRoutePattern
             };
+
+            clone.IncludedAssemblyPrefixes.Clear();
+            clone.ExcludedAssemblyPrefixes.Clear();
+            clone.SecuritySchemes.Clear();
+            clone.PreferredSecuritySchemes.Clear();
 
             foreach (var x in IncludedAssemblyPrefixes) clone.IncludedAssemblyPrefixes.Add(x);
             foreach (var x in ExcludedAssemblyPrefixes) clone.ExcludedAssemblyPrefixes.Add(x);

@@ -258,7 +258,7 @@ builder.Services.AddTransform(config =>
 A **chave** da regra é construída automaticamente a partir de `Method:BaseRoute/ActionRoute` da ação (ex: `POST:api/users/`). A **versão** é selecionada por requisição a partir de:
 1. Query string `?api-version=2024-01-01`
 2. Header `x-api-version: 2024-01-01`
-3. Fallback padrão: `1970-01-01`
+3. Fallback padrão: string vazia (nenhuma transformação é aplicada a menos que uma versão seja explicitamente solicitada)
 
 ### Definindo Regras de Transformação
 
@@ -343,7 +343,7 @@ O cliente especifica a versão desejada da API e o sistema aplica as transforma�
 // → Mesmo comportamento da query string
 ```
 
-Quando nenhuma versão é fornecida, o sistema usa `1970-01-01` como padrão, significando que todas as transformações registradas (com versões mais novas) são aplicadas.
+Quando nenhuma versão é fornecida, o sistema usa uma string vazia como padrão, significando que nenhuma transformação registrada é aplicada (apenas regras com versão estritamente maior que a versão solicitada são aplicadas).
 
 ### Exemplo Prático: Evolução de API
 
@@ -672,6 +672,83 @@ Adicione um parâmetro `CancellationToken` a qualquer método de ação — o mi
 Task<Stream> ExportAsync(CancellationToken cancellationToken);
 ```
 
+**Upload de Arquivos (`IFormFile` / `IFormFileCollection`):**
+
+Um parâmetro `[Body]` tipado como `IFormFile` ou `IFormFileCollection` é vinculado aos arquivos do formulário multipart em vez de ser desserializado como JSON:
+
+```csharp
+[Action("upload", method: RestMethod.Post)]
+Task UploadAsync([Body] IFormFile file);
+
+[Action("upload-many", method: RestMethod.Post)]
+Task UploadManyAsync([Body] IFormFileCollection files);
+```
+
+**Respostas em Streaming (`IAsyncEnumerable<T>`):**
+
+Métodos de ação que retornam `IAsyncEnumerable<T>` (ou `Task<IAsyncEnumerable<T>>`) são transmitidos diretamente para o corpo da resposta sem materializar toda a coleção em memória:
+
+```csharp
+[Action("stream", method: RestMethod.Get)]
+async IAsyncEnumerable<DataPoint> StreamAsync()
+{
+    for (int i = 0; i < 1000; i++)
+    {
+        yield return new DataPoint(i);
+        await Task.Delay(10);
+    }
+}
+```
+
+**Cache de Resposta (`[Cache]`):**
+
+Aplique o atributo `[Cache]` em uma ação para emitir um header de resposta `Cache-Control`. O construtor recebe a duração do cache em segundos; `Location` controla o escopo `public`/`private` e `NoStore` emite `no-store`:
+
+```csharp
+[Action("catalog", method: RestMethod.Get)]
+[Cache(300)] // public, max-age=300
+Task<List<Product>> GetCatalogAsync();
+
+[Action("profile", method: RestMethod.Get)]
+[Cache(60, Location = CacheLocation.Client)] // private, max-age=60
+Task<Profile> GetProfileAsync();
+
+[Action("live", method: RestMethod.Get)]
+[Cache(0, NoStore = true)] // no-store
+Task<LiveData> GetLiveAsync();
+```
+
+**Limite de Requisições (`[RateLimit]`):**
+
+Aplique `[RateLimit(limit, windowSeconds)]` em uma ação ou em uma interface de serviço. Quando o número de requisições do mesmo cliente (identificado pelo id do usuário ou endereço IP) exceder `limit` dentro da janela, o middleware responde com HTTP 429 Too Many Requests. O contador é armazenado em `IMemoryCache`:
+
+```csharp
+[Service("api/search")]
+public interface ISearchService
+{
+    // Permite 10 requisições por minuto por cliente.
+    [Action("", method: RestMethod.Get)]
+    [RateLimit(10, 60)]
+    Task<List<Result>> SearchAsync([Query] string q);
+}
+```
+
+**Log de Requisições (`RestOptions`):**
+
+Habilite o log estruturado de requisições passando um delegate de configuração para `AddRestServices`. Quando habilitado, cada requisição correspondente registra o método HTTP, caminho, código de status, duração e operação. Flags opcionais incluem o corpo da requisição na entrada de log:
+
+```csharp
+builder.Services.AddRestServices(rest =>
+{
+    rest.AddService<IUserService, UserService>();
+}, options =>
+{
+    options.EnableRequestLogging = true;
+    options.LogRequestBody = true;   // inclui o corpo da requisição (desligado por padrão)
+    options.LogResponseBody = true;  // registra metadados da resposta (desligado por padrão)
+});
+```
+
 **Valores Padrão de Parâmetros:**
 
 Parâmetros com valores padrão são suportados. Quando uma fonte de binding não fornece um valor, o padrão declarado é usado:
@@ -704,7 +781,7 @@ public async Task<User> GetUserAsync(int id)
 }
 ```
 
-Exceções não tratadas retornam `500 Internal Server Error` com um payload `RestError` (`{ "message", "stack" }`). O campo `stack` só é preenchido no ambiente de Development.
+Exceções não tratadas retornam `500 Internal Server Error` com um payload [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc7807) (RFC 7807) e content type `application/problem+json`. O campo de extensão `stackTrace` só é preenchido no ambiente de Development. `BusinessException` e `BadHttpRequestException` também retornam `ProblemDetails` com seus respectivos status codes e mensagens.
 
 #### Suporte Nativo ao Tipo `Id`
 
