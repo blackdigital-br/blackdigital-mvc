@@ -429,6 +429,72 @@ namespace BlackDigital.AspNet.Test.OpenApi
             Assert.True(path.Operations.ContainsKey(HttpMethod.Post));
         }
 
+        // --- [Obsolete] deprecation tests ---
+
+        [Fact]
+        public void Build_WhenServiceInterfaceIsObsolete_ShouldMarkAllOperationsAsDeprecated()
+        {
+            var builder = CreateBuilder();
+
+            var doc = builder.Build();
+
+            var path = doc.Paths["/api/legacy"];
+            var op = path.Operations[HttpMethod.Get];
+
+            Assert.True(op.Deprecated);
+        }
+
+        [Fact]
+        public void Build_WhenServiceInterfaceIsObsolete_ShouldAppendDeprecatedToTagDescription()
+        {
+            var builder = CreateBuilder();
+
+            var doc = builder.Build();
+
+            var legacyTag = doc.Tags.FirstOrDefault(t => t.Name == "Legacy");
+            Assert.NotNull(legacyTag);
+            Assert.Contains("deprecated", legacyTag.Description, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Use IProductService instead.", legacyTag.Description);
+        }
+
+        [Fact]
+        public void Build_WhenOnlyMethodIsObsolete_ShouldMarkOnlyThatOperationAsDeprecated()
+        {
+            var builder = CreateBuilder();
+
+            var doc = builder.Build();
+
+            // Active method — not deprecated.
+            var activeOp = doc.Paths["/api/mixed/active"].Operations[HttpMethod.Get];
+            Assert.False(activeOp.Deprecated);
+
+            // Obsolete method — deprecated.
+            var oldOp = doc.Paths["/api/mixed/old"].Operations[HttpMethod.Get];
+            Assert.True(oldOp.Deprecated);
+        }
+
+        [Fact]
+        public void Build_WhenMethodIsObsoleteWithMessage_ShouldAppendMessageToDescription()
+        {
+            var builder = CreateBuilder();
+
+            var doc = builder.Build();
+
+            var oldOp = doc.Paths["/api/mixed/old"].Operations[HttpMethod.Get];
+            Assert.Contains("Use GetActiveAsync instead.", oldOp.Description);
+        }
+
+        [Fact]
+        public void Build_WhenNeitherServiceNorMethodIsObsolete_ShouldNotMarkOperationAsDeprecated()
+        {
+            var builder = CreateBuilder();
+
+            var doc = builder.Build();
+
+            var op = doc.Paths["/api/products"].Operations[HttpMethod.Get];
+            Assert.False(op.Deprecated);
+        }
+
         // --- Tests for private helpers via reflection ---
 
         [Theory]

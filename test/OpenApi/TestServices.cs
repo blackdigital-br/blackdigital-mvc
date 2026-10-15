@@ -60,4 +60,25 @@ namespace BlackDigital.AspNet.Test.OpenApi
         [Action("open", method: RestMethod.Get, authorize: false)]
         Task<string> GetOpenAsync();
     }
+
+    // Entire service is deprecated — every operation should be marked deprecated.
+    [Obsolete("Use IProductService instead.")]
+    [Service("api/legacy", authorize: false, name: "Legacy", description: "Legacy endpoints.")]
+    public interface ILegacyService
+    {
+        [Action("", method: RestMethod.Get, authorize: false)]
+        Task<string> GetLegacyAsync();
+    }
+
+    // Only a single method is deprecated; the rest of the service stays active.
+    [Service("api/mixed", authorize: false, name: "Mixed", description: "Mixed endpoints.")]
+    public interface IMixedService
+    {
+        [Action("active", method: RestMethod.Get, authorize: false)]
+        Task<string> GetActiveAsync();
+
+        [Obsolete("Use GetActiveAsync instead.")]
+        [Action("old", method: RestMethod.Get, authorize: false)]
+        Task<string> GetOldAsync();
+    }
 }

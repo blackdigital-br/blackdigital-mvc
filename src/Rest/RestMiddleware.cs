@@ -3,9 +3,12 @@ using BlackDigital.Model;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
@@ -28,24 +31,28 @@ namespace BlackDigital.AspNet.Rest
         private readonly RestRouteRegistry _routeRegistry;
         private readonly ILogger<RestMiddleware> _logger;
         private readonly IWebHostEnvironment _environment;
+        private readonly RestOptions _options;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RestMiddleware"/> class.
         /// </summary>
         /// <param name="next">The next delegate in the request pipeline.</param>
         /// <param name="routeRegistry">The pre-built route table for REST services.</param>
-        /// <param name="logger">The logger used for error reporting.</param>
+        /// <param name="logger">The logger used for error reporting and request logging.</param>
         /// <param name="environment">The hosting environment used to control stack-trace exposure.</param>
+        /// <param name="options">The REST middleware options controlling optional cross-cutting behavior.</param>
         /// <exception cref="ArgumentNullException">Thrown when any argument is null.</exception>
         public RestMiddleware(RequestDelegate next,
                               RestRouteRegistry routeRegistry,
                               ILogger<RestMiddleware> logger,
-                              IWebHostEnvironment environment)
+                              IWebHostEnvironment environment,
+                              IOptions<RestOptions> options)
         {
             _next = next ?? throw new ArgumentNullException(nameof(next));
             _routeRegistry = routeRegistry ?? throw new ArgumentNullException(nameof(routeRegistry));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _environment = environment ?? throw new ArgumentNullException(nameof(environment));
+            _options = options?.Value ?? new RestOptions();
         }
 
         /// <summary>
@@ -144,7 +151,8 @@ namespace BlackDigital.AspNet.Rest
         /// Executes the matched REST route: resolves authorization, instantiates
         /// the service, binds method parameters from the request, invokes the
         /// action method, and serializes the result. Exceptions are caught and
-        /// translated into HTTP responses.
+        /// translated into HTTP responses. Request/response logging, rate
+        /// limiting and response caching are applied here when configured.
         /// </summary>
         /// <param name="context">The HTTP context for the current request.</param>
         /// <param name="routeEntry">The matched route entry containing the service and method.</param>
@@ -153,6 +161,9 @@ namespace BlackDigital.AspNet.Rest
         {
             var methodInfo = routeEntry.Method;
             var serviceDescriptor = routeEntry.Service;
+
+            var stopwatch = _options.EnableRequestLogging ? Stopwatch.StartNew() : null;
+            string? requestBody = null;
 
             try
             {
@@ -197,6 +208,25 @@ namespace BlackDigital.AspNet.Rest
                     }
                 }
 
+                // Rate limiting — applied after authorization so anonymous callers
+                // cannot bypass it, but before the service is invoked.
+                var rateLimitAttr = methodInfo.GetCustomAttribute<RateLimitAttribute>()
+                                    ?? serviceDescriptor.ServiceType.GetCustomAttribute<RateLimitAttribute>();
+                if (rateLimitAttr != null)
+                {
+                    if (!await CheckRateLimitAsync(context, actionKey, rateLimitAttr))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                        return;
+                    }
+                }
+
+                // Capture the request body for logging before it is consumed.
+                if (_options.EnableRequestLogging && _options.LogRequestBody)
+                {
+                    requestBody = await ReadRequestBody(context);
+                }
+
                 // Obter instância do serviço
                 var service = context.RequestServices.GetService(serviceDescriptor.ServiceType);
                 if (service == null)
@@ -209,6 +239,13 @@ namespace BlackDigital.AspNet.Rest
 
                 // Executar método
                 var result = methodInfo.Invoke(service, parameters);
+
+                // Aplicar headers de cache quando a action ou interface tiver [Cache].
+                var cacheAttr = methodInfo.GetCustomAttribute<CacheAttribute>();
+                if (cacheAttr != null)
+                {
+                    ApplyCacheHeaders(context, cacheAttr);
+                }
 
                 // Processar resultado
                 await ProcessResult(actionKey, context, result, methodInfo.ReturnType);
@@ -250,6 +287,14 @@ namespace BlackDigital.AspNet.Rest
                     var json = JsonCast.ToJson(error);
 
                     await context.Response.WriteAsync(json);
+                }
+            }
+            finally
+            {
+                if (stopwatch != null)
+                {
+                    stopwatch.Stop();
+                    await LogRequestAsync(context, methodInfo, stopwatch.Elapsed, requestBody);
                 }
             }
         }
@@ -321,7 +366,21 @@ namespace BlackDigital.AspNet.Rest
                 }
                 else if (bodyAttribute != null)
                 {
-                    values[i] = await TransformInputBodyAsync(actionKey, context, parameter);
+                    // [Body] parameters of type IFormFile / IFormFileCollection
+                    // are read from the multipart form files instead of being
+                    // JSON-deserialized.
+                    if (parameter.ParameterType == typeof(IFormFile))
+                    {
+                        values[i] = context.Request.Form.Files.FirstOrDefault();
+                    }
+                    else if (parameter.ParameterType == typeof(IFormFileCollection))
+                    {
+                        values[i] = context.Request.Form.Files;
+                    }
+                    else
+                    {
+                        values[i] = await TransformInputBodyAsync(actionKey, context, parameter);
+                    }
                 }
                 else if (headerAttribute != null)
                 {
@@ -569,8 +628,151 @@ namespace BlackDigital.AspNet.Rest
                 return;
             }
 
+            // IAsyncEnumerable<T> results are streamed to the response body
+            // without materializing the whole collection in memory.
+            if (IsAsyncEnumerable(result, out var asyncEnumerable, out var elementType))
+            {
+                var serializeAsync = typeof(JsonSerializer)
+                    .GetMethods()
+                    .First(m => m.Name == nameof(JsonSerializer.SerializeAsync)
+                                && m.IsGenericMethod
+                                && m.GetParameters().Length == 3
+                                && m.GetParameters()[0].ParameterType == typeof(Stream));
+
+                var generic = serializeAsync.MakeGenericMethod(elementType);
+                await (Task)generic.Invoke(null, new object[] { context.Response.Body, asyncEnumerable, jsonOptions })!;
+                return;
+            }
+
             var json = JsonSerializer.Serialize(result, jsonOptions);
             await context.Response.WriteAsync(json);
+        }
+
+        /// <summary>
+        /// Determines whether the given result implements
+        /// <see cref="IAsyncEnumerable{T}"/> and, if so, returns the strongly
+        /// typed enumerable and its element type for streaming serialization.
+        /// </summary>
+        /// <param name="result">The action method result to inspect.</param>
+        /// <param name="asyncEnumerable">The result cast to <see cref="IAsyncEnumerable{T}"/>, or null.</param>
+        /// <param name="elementType">The element type of the asynchronous sequence.</param>
+        /// <returns><c>true</c> when the result is an <see cref="IAsyncEnumerable{T}"/>; otherwise, <c>false</c>.</returns>
+        private static bool IsAsyncEnumerable(object result, out object asyncEnumerable, out Type elementType)
+        {
+            asyncEnumerable = null!;
+            elementType = null!;
+
+            var iface = result.GetType().GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
+
+            if (iface == null)
+                return false;
+
+            asyncEnumerable = result;
+            elementType = iface.GetGenericArguments()[0];
+            return true;
+        }
+
+        /// <summary>
+        /// Applies a <c>Cache-Control</c> response header derived from a
+        /// <see cref="CacheAttribute"/>. Supports <c>public</c>/<c>private</c>
+        /// scope, <c>max-age</c> and the <c>no-store</c> directive.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="cache">The cache attribute describing the desired caching behavior.</param>
+        private static void ApplyCacheHeaders(HttpContext context, CacheAttribute cache)
+        {
+            var scope = cache.Location == CacheLocation.Client ? "private" : "public";
+
+            if (cache.NoStore)
+            {
+                context.Response.Headers["Cache-Control"] = "no-store";
+                return;
+            }
+
+            context.Response.Headers["Cache-Control"] = $"{scope}, max-age={cache.Duration}";
+        }
+
+        /// <summary>
+        /// Evaluates the configured rate limit for the current action and client.
+        /// The counter is stored in <see cref="IMemoryCache"/> keyed by action
+        /// and client identifier, and resets after the configured window.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="actionKey">The action key used as part of the cache key.</param>
+        /// <param name="rateLimit">The rate limit configuration.</param>
+        /// <returns><c>true</c> when the request is within the limit; otherwise, <c>false</c>.</returns>
+        private static async Task<bool> CheckRateLimitAsync(HttpContext context, string actionKey, RateLimitAttribute rateLimit)
+        {
+            var cache = context.RequestServices.GetService<IMemoryCache>();
+            if (cache == null)
+                return true;
+
+            var clientId = GetClientIdentifier(context);
+            var cacheKey = $"rl:{actionKey}:{clientId}";
+            var window = TimeSpan.FromSeconds(rateLimit.WindowSeconds);
+
+            var counter = await cache.GetOrCreateAsync(cacheKey, entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = window;
+                return Task.FromResult(0);
+            });
+
+            if (counter >= rateLimit.Limit)
+                return false;
+
+            cache.Set(cacheKey, counter + 1, window);
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves a stable identifier for the current client for rate-limit
+        /// accounting. Prefers the authenticated user's name identifier claim;
+        /// falls back to the remote IP address.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <returns>A client identifier string.</returns>
+        private static string GetClientIdentifier(HttpContext context)
+        {
+            var userId = context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+                return userId;
+
+            return context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        }
+
+        /// <summary>
+        /// Writes a structured log entry for the current request when request
+        /// logging is enabled. Includes HTTP method, path, status code,
+        /// duration, and optionally the request/response bodies.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="methodInfo">The action method that handled the request.</param>
+        /// <param name="elapsed">The time spent processing the request.</param>
+        /// <param name="requestBody">The captured request body, or null.</param>
+        private async Task LogRequestAsync(HttpContext context, MethodInfo methodInfo, TimeSpan elapsed, string? requestBody)
+        {
+            var method = context.Request.Method;
+            var path = context.Request.Path.Value;
+            var statusCode = context.Response.StatusCode;
+            var operation = methodInfo.DeclaringType?.Name + "." + methodInfo.Name;
+
+            if (_options.LogResponseBody)
+            {
+                // The response body has already been written; we only log the
+                // status code and content length to avoid buffering overhead.
+                _logger.LogInformation(
+                    "REST {Method} {Path} -> {StatusCode} ({ElapsedMs}ms) [{Operation}] reqBody={RequestBody}",
+                    method, path, statusCode, elapsed.TotalMilliseconds, operation, requestBody ?? "<none>");
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "REST {Method} {Path} -> {StatusCode} ({ElapsedMs}ms) [{Operation}]",
+                    method, path, statusCode, elapsed.TotalMilliseconds, operation);
+            }
+
+            await Task.CompletedTask;
         }
 
         /// <summary>

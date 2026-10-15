@@ -21,8 +21,29 @@ namespace BlackDigital.AspNet.Rest
         public static IServiceCollection AddRestServices(this IServiceCollection services,
                                                         Func<RestServiceBuilder, RestServiceBuilder> restServiceBuilder)
         {
+            return AddRestServices(services, restServiceBuilder, _ => { });
+        }
+
+        /// <summary>
+        /// Registers the REST services into the DI container, configures the
+        /// <see cref="RestOptions"/> that control optional middleware behavior
+        /// (such as request logging), and builds a
+        /// <see cref="RestRouteRegistry"/> singleton that the middleware
+        /// consumes at request time.
+        /// </summary>
+        /// <param name="services">The service collection to register into.</param>
+        /// <param name="restServiceBuilder">A delegate that configures the REST services.</param>
+        /// <param name="configureOptions">A delegate that configures the REST middleware options.</param>
+        /// <returns>The service collection for chaining.</returns>
+        public static IServiceCollection AddRestServices(this IServiceCollection services,
+                                                        Func<RestServiceBuilder, RestServiceBuilder> restServiceBuilder,
+                                                        Action<RestOptions> configureOptions)
+        {
             var builder = new RestServiceBuilder(services);
             builder = restServiceBuilder(builder);
+
+            // Register RestOptions so the middleware can resolve IOptions<RestOptions>.
+            services.Configure(configureOptions);
 
             // Build the route table from the full service collection (after the
             // caller has registered all REST services) and register it as a

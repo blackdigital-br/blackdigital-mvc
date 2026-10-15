@@ -6,22 +6,13 @@ Ideas for improving `BlackDigital.AspNet` itself. These are not user-facing docs
 
 - Support `[ProducesResponseType]`-style attributes for explicit response codes and schemas
 - Support `[FromForm]` / `IFormFile` parameter binding and OpenAPI multipart schema
-- Support operation tags grouping by service namespace
-- Add a `Deprecated` flag on `[Action]` that maps to `operation.deprecated`
-- Support `[Obsolete]` on service interfaces → deprecated tag
 - Allow custom schema generation callbacks via `BdOpenApiOptions`
 
 ## REST improvements
 
 - Add `PATCH` support with JSON Patch (`Microsoft.AspNetCore.JsonPatch`)
 - Support `[FromForm]` for multipart form data
-- Add a `[Cache]` attribute for response caching
-- Add `[RateLimit]` attribute support (or integrate with AspNetCoreRateLimit)
-- Support `IAsyncEnumerable<T>` streaming responses
-- Add request/response logging middleware option
 - Support `ProblemDetails` for error responses (currently returns `RestError` or plain text)
-- Add `CancellationToken` automatic binding documentation (already works, needs docs + test)
-- Support binding `IFormFile` and `IFormFileCollection`
 
 ## Transformation improvements
 
