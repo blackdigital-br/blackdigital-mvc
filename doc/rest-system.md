@@ -258,7 +258,7 @@ builder.Services.AddTransform(config =>
 The rule **key** is built automatically from the action's `Method:BaseRoute/ActionRoute` (e.g. `POST:api/users/`). The **version** is selected per request from:
 1. Query string `?api-version=2024-01-01`
 2. Header `x-api-version: 2024-01-01`
-3. Fallback default: `1970-01-01`
+3. Fallback default: empty string (no transformations applied unless a version is explicitly requested)
 
 ### Defining Transformation Rules
 
@@ -343,7 +343,7 @@ The client specifies the desired API version, and the system applies the appropr
 // → Same behavior as the query string
 ```
 
-When no version is provided, the system defaults to `1970-01-01`, meaning all registered transformations (with newer versions) are applied.
+When no version is provided, the system defaults to an empty string, meaning no registered transformations are applied (only rules with a version strictly greater than the requested version are applied).
 
 ### Practical Example: API Evolution
 
@@ -781,7 +781,7 @@ public async Task<User> GetUserAsync(int id)
 }
 ```
 
-Unhandled exceptions return `500 Internal Server Error` with a `RestError` payload (`{ "message", "stack" }`). The `stack` field is only populated in the Development environment.
+Unhandled exceptions return `500 Internal Server Error` with a [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc7807) payload (RFC 7807) and content type `application/problem+json`. The `stackTrace` extension field is only populated in the Development environment. `BusinessException` and `BadHttpRequestException` also return `ProblemDetails` with their respective status codes and messages.
 
 #### Built-in `Id` Type Support
 

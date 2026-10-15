@@ -40,7 +40,7 @@ Read [references/rest.md](references/rest.md) for details before editing REST co
 ### Transformation system
 
 - Transformations are keyed by `(actionKey, version, direction)` where `direction` is `Input`, `Output`, or `Both`.
-- Version is resolved per request from `?api-version=` query string, then `x-api-version` header, then fallback `1970-01-01`.
+- Version is resolved per request from `?api-version=` query string, then `x-api-version` header, then fallback to empty string (no transformations applied).
 - Rules with versions **newer than** the requested version are applied in sequence; input rules are ordered ascending, output rules descending.
 - Rules implement `ITransformRule`; the recommended base classes are `TransformRule<T>` and `TransformRule<TIn, TOut>`.
 

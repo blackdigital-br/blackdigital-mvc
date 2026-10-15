@@ -248,7 +248,7 @@ For each request, the REST middleware determines the requested version by checki
 
 1. **Query string**: `?api-version=2024-01-01`
 2. **Header**: `x-api-version: 2024-01-01`
-3. **Fallback default**: `1970-01-01` (when neither is present)
+3. **Fallback default**: empty string (when neither is present — no transformations are applied)
 
 ### Rule Chaining
 

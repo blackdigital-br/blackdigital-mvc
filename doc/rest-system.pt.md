@@ -258,7 +258,7 @@ builder.Services.AddTransform(config =>
 A **chave** da regra é construída automaticamente a partir de `Method:BaseRoute/ActionRoute` da ação (ex: `POST:api/users/`). A **versão** é selecionada por requisição a partir de:
 1. Query string `?api-version=2024-01-01`
 2. Header `x-api-version: 2024-01-01`
-3. Fallback padrão: `1970-01-01`
+3. Fallback padrão: string vazia (nenhuma transformação é aplicada a menos que uma versão seja explicitamente solicitada)
 
 ### Definindo Regras de Transformação
 
@@ -343,7 +343,7 @@ O cliente especifica a versão desejada da API e o sistema aplica as transforma�
 // → Mesmo comportamento da query string
 ```
 
-Quando nenhuma versão é fornecida, o sistema usa `1970-01-01` como padrão, significando que todas as transformações registradas (com versões mais novas) são aplicadas.
+Quando nenhuma versão é fornecida, o sistema usa uma string vazia como padrão, significando que nenhuma transformação registrada é aplicada (apenas regras com versão estritamente maior que a versão solicitada são aplicadas).
 
 ### Exemplo Prático: Evolução de API
 
@@ -781,7 +781,7 @@ public async Task<User> GetUserAsync(int id)
 }
 ```
 
-Exceções não tratadas retornam `500 Internal Server Error` com um payload `RestError` (`{ "message", "stack" }`). O campo `stack` só é preenchido no ambiente de Development.
+Exceções não tratadas retornam `500 Internal Server Error` com um payload [ProblemDetails](https://datatracker.ietf.org/doc/html/rfc7807) (RFC 7807) e content type `application/problem+json`. O campo de extensão `stackTrace` só é preenchido no ambiente de Development. `BusinessException` e `BadHttpRequestException` também retornam `ProblemDetails` com seus respectivos status codes e mensagens.
 
 #### Suporte Nativo ao Tipo `Id`
 

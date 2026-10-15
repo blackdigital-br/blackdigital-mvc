@@ -11,7 +11,7 @@ builder.Services.AddRazorPages();
 
 // Novo approach com middleware - substitui a geração dinâmica de controllers
 builder.Services.AddRestServices(restService =>
-    restService.AddService<IUser, UserImplemention>());
+    restService.AddService<IUser, UserImplementation>());
 
 // Adiciona as configurações padrão do MVC (model binders, constraints)
 builder.Services.AddRestMvcOptions();

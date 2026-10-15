@@ -43,7 +43,7 @@ For each request, the middleware resolves the requested version from:
 
 1. query string `?api-version=2024-01-01`
 2. header `x-api-version: 2024-01-01`
-3. fallback: `1970-01-01`
+3. fallback: empty string (no transformations applied)
 
 ## Rule selection and ordering
 
@@ -56,7 +56,7 @@ Rules are then ordered:
 - **Input**: ascending by version (oldest → newest)
 - **Output**: descending by version (newest → oldest)
 
-This means a client requesting version `2024-01-01` receives all transformations registered for versions newer than `2024-01-01`. A client requesting `1970-01-01` (the default) receives **all** registered transformations.
+This means a client requesting version `2024-01-01` receives all transformations registered for versions newer than `2024-01-01`. A client requesting no version (the default) receives **no** registered transformations.
 
 ## Rule implementation
 

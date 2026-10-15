@@ -190,18 +190,25 @@ namespace BlackDigital.AspNet.Test.Rest
             Assert.Equal("/api/test/action", result);
         }
 
+        private static RestRouteEntry CreateRouteEntry(string pattern)
+        {
+            var service = ServiceDescriptor.Singleton(typeof(object), new object());
+            var method = typeof(object).GetMethod(nameof(object.ToString))!;
+            return new RestRouteEntry(pattern, service, method);
+        }
+
         [Fact]
         public void MatchesPattern_WhenExactMatch_ShouldReturnTrue()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test", "/api/test", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.True((bool)result!);
@@ -211,14 +218,14 @@ namespace BlackDigital.AspNet.Test.Rest
         public void MatchesPattern_WhenDifferentSegmentCount_ShouldReturnFalse()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test/extra");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test", "/api/test/extra", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.False((bool)result!);
@@ -228,14 +235,14 @@ namespace BlackDigital.AspNet.Test.Rest
         public void MatchesPattern_WhenParameterInRoute_ShouldExtractParameter()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var middleware = CreateMiddleware(services);
             var matchesPatternMethod = typeof(RestMiddleware)
-                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Instance);
+                .GetMethod("MatchesPattern", BindingFlags.NonPublic | BindingFlags.Static);
             var routeValues = new Dictionary<string, object>();
+            var pathSegments = "/api/test/123".Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var entry = CreateRouteEntry("/api/test/{id}");
 
             // Act
-            var result = matchesPatternMethod?.Invoke(middleware, new object[] { "/api/test/123", "/api/test/{id}", routeValues });
+            var result = matchesPatternMethod?.Invoke(null, new object[] { pathSegments, entry, routeValues });
 
             // Assert
             Assert.True((bool)result!);
@@ -406,12 +413,14 @@ namespace BlackDigital.AspNet.Test.Rest
             var prepareMethod = typeof(RestMiddleware)
                 .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
 
+            var values = new object?[1];
+
             // Act
-            var result = await (Task<object?[]>)prepareMethod!
-                .Invoke(middleware, new object[] { "GET:api/test", _mockHttpContext.Object, method, new Dictionary<string, object>() })!;
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "GET:api/test", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
 
             // Assert
-            Assert.Equal(aborted, result[0]);
+            Assert.Equal(aborted, values[0]);
         }
 
         // --- CacheAttribute / ApplyCacheHeaders ---
@@ -598,12 +607,14 @@ namespace BlackDigital.AspNet.Test.Rest
             var prepareMethod = typeof(RestMiddleware)
                 .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
 
+            var values = new object?[1];
+
             // Act
-            var result = await (Task<object?[]>)prepareMethod!
-                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, new Dictionary<string, object>() })!;
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
 
             // Assert
-            Assert.Same(file.Object, result[0]);
+            Assert.Same(file.Object, values[0]);
         }
 
         [Fact]
@@ -623,12 +634,14 @@ namespace BlackDigital.AspNet.Test.Rest
             var prepareMethod = typeof(RestMiddleware)
                 .GetMethod("PrepareMethodParameters", BindingFlags.NonPublic | BindingFlags.Instance);
 
+            var values = new object?[1];
+
             // Act
-            var result = await (Task<object?[]>)prepareMethod!
-                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, new Dictionary<string, object>() })!;
+            await (Task)prepareMethod!
+                .Invoke(middleware, new object[] { "POST:api/upload", _mockHttpContext.Object, method, values, new Dictionary<string, object>() })!;
 
             // Assert
-            var bound = Assert.IsType<FormFileCollection>(result[0]);
+            var bound = Assert.IsType<FormFileCollection>(values[0]);
             Assert.Equal(2, bound.Count);
         }
 

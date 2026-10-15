@@ -3,6 +3,7 @@ using BlackDigital.Model;
 using BlackDigital.Rest;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -32,6 +33,7 @@ namespace BlackDigital.AspNet.Rest
         private readonly ILogger<RestMiddleware> _logger;
         private readonly IWebHostEnvironment _environment;
         private readonly RestOptions _options;
+        private JsonSerializerOptions? _cachedJsonOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RestMiddleware"/> class.
@@ -97,15 +99,34 @@ namespace BlackDigital.AspNet.Rest
             routeEntry = null;
             routeValues = new Dictionary<string, object>();
 
-            foreach (var entry in _routeRegistry.GetRoutesForMethod(httpMethod))
+            // Fast path: static routes (no template parameters) are looked up
+            // directly from a dictionary keyed by the lowercased path. This
+            // avoids iterating the route list and splitting strings for the
+            // common case of fixed URLs.
+            var staticRoutes = _routeRegistry.GetStaticRoutes(httpMethod);
+            if (staticRoutes.TryGetValue(path, out var staticEntry))
             {
-                if (MatchesPattern(path, entry.RoutePattern, routeValues))
-                {
-                    routeEntry = entry;
-                    return true;
-                }
+                routeEntry = staticEntry;
+                return true;
+            }
 
-                routeValues.Clear();
+            // Slow path: parameterized routes. Split the request path once and
+            // only consider routes with the same segment count.
+            var pathSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var parameterized = _routeRegistry.GetParameterizedRoutes(httpMethod);
+
+            if (parameterized.TryGetValue(pathSegments.Length, out var candidates))
+            {
+                foreach (var entry in candidates)
+                {
+                    if (MatchesPattern(pathSegments, entry, routeValues))
+                    {
+                        routeEntry = entry;
+                        return true;
+                    }
+
+                    routeValues.Clear();
+                }
             }
 
             return false;
@@ -116,14 +137,13 @@ namespace BlackDigital.AspNet.Rest
         /// segment. Template segments enclosed in braces (<c>{param}</c>) capture
         /// the corresponding path segment into <paramref name="routeValues"/>.
         /// </summary>
-        /// <param name="path">The request path to match.</param>
-        /// <param name="pattern">The route pattern to match against.</param>
+        /// <param name="pathSegments">The request path already split into segments.</param>
+        /// <param name="entry">The route entry whose pre-split pattern segments are compared.</param>
         /// <param name="routeValues">The dictionary to populate with captured values.</param>
         /// <returns><c>true</c> when the path matches the pattern; otherwise, <c>false</c>.</returns>
-        private bool MatchesPattern(string path, string pattern, Dictionary<string, object> routeValues)
+        private static bool MatchesPattern(string[] pathSegments, RestRouteEntry entry, Dictionary<string, object> routeValues)
         {
-            var pathSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            var patternSegments = pattern.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var patternSegments = entry.Segments;
 
             if (pathSegments.Length != patternSegments.Length)
                 return false;
@@ -234,31 +254,45 @@ namespace BlackDigital.AspNet.Rest
                     throw new InvalidOperationException($"Service not found to: {serviceDescriptor.ServiceType}");
                 }
 
-                // Preparar parâmetros
-                var parameters = await PrepareMethodParameters(actionKey, context, methodInfo, routeValues);
+                // Preparar parâmetros — rent an array from the pool to avoid
+                // allocating a new object[] on every request.
+                var parameterCount = methodInfo.GetParameters().Length;
+                var parameters = parameterCount > 0
+                    ? System.Buffers.ArrayPool<object?>.Shared.Rent(parameterCount)
+                    : Array.Empty<object?>();
 
-                // Executar método
-                var result = methodInfo.Invoke(service, parameters);
-
-                // Aplicar headers de cache quando a action ou interface tiver [Cache].
-                var cacheAttr = methodInfo.GetCustomAttribute<CacheAttribute>();
-                if (cacheAttr != null)
+                try
                 {
-                    ApplyCacheHeaders(context, cacheAttr);
-                }
+                    await PrepareMethodParameters(actionKey, context, methodInfo, parameters, routeValues);
 
-                // Processar resultado
-                await ProcessResult(actionKey, context, result, methodInfo.ReturnType);
+                    // Executar método
+                    var result = MethodInvoker.Invoke(methodInfo, service, parameters);
+
+                    // Aplicar headers de cache quando a action ou interface tiver [Cache].
+                    var cacheAttr = methodInfo.GetCustomAttribute<CacheAttribute>();
+                    if (cacheAttr != null)
+                    {
+                        ApplyCacheHeaders(context, cacheAttr);
+                    }
+
+                    // Processar resultado
+                    await ProcessResult(actionKey, context, result, methodInfo.ReturnType);
+                }
+                finally
+                {
+                    if (parameters.Length > 0)
+                        System.Buffers.ArrayPool<object?>.Shared.Return(parameters, clearArray: true);
+                }
             }
             catch (BusinessException businessException)
             {
                 context.Response.StatusCode = businessException.Code;
-                await context.Response.WriteAsync(businessException.Message);
+                await WriteProblemDetailsAsync(context, businessException.Code, "Business Error", businessException.Message);
             }
             catch (BadHttpRequestException badRequest)
             {
                 context.Response.StatusCode = badRequest.StatusCode;
-                await context.Response.WriteAsync(badRequest.Message);
+                await WriteProblemDetailsAsync(context, badRequest.StatusCode, "Bad Request", badRequest.Message);
             }
             catch (Exception ex)
             {
@@ -268,25 +302,28 @@ namespace BlackDigital.AspNet.Rest
                 if (rootException is BusinessException innerBusinessException)
                 {
                     context.Response.StatusCode = innerBusinessException.Code;
-                    await context.Response.WriteAsync(innerBusinessException.Message);
+                    await WriteProblemDetailsAsync(context, innerBusinessException.Code, "Business Error", innerBusinessException.Message);
                 }
                 else
                 {
                     _logger.LogError(ex, "Error on process Rest Service");
                     context.Response.StatusCode = 500;
-                    context.Response.ContentType = "application/json";
 
                     // Never leak stack traces outside the development environment.
                     var includeStackTrace = _environment.IsDevelopment();
-                    var error = new RestError()
+                    var problem = new ProblemDetails
                     {
-                        Message = rootException.Message,
-                        Stack = includeStackTrace ? rootException.StackTrace : null
+                        Status = 500,
+                        Title = "Internal Server Error",
+                        Detail = rootException.Message
                     };
 
-                    var json = JsonCast.ToJson(error);
+                    if (includeStackTrace && rootException.StackTrace != null)
+                    {
+                        problem.Extensions["stackTrace"] = rootException.StackTrace;
+                    }
 
-                    await context.Response.WriteAsync(json);
+                    await WriteProblemDetailsAsync(context, problem);
                 }
             }
             finally
@@ -302,18 +339,24 @@ namespace BlackDigital.AspNet.Rest
 
         /// <summary>
         /// Resolves the JSON serializer options from the request services,
-        /// falling back to the web defaults when none are registered.
+        /// falling back to the web defaults when none are registered. The
+        /// resolved options are cached for the lifetime of the middleware
+        /// instance to avoid repeated DI lookups and allocations on every
+        /// request.
         /// </summary>
         /// <param name="context">The HTTP context for the current request.</param>
         /// <returns>The resolved <see cref="JsonSerializerOptions"/>.</returns>
         private JsonSerializerOptions GetJsonOptions(HttpContext context)
         {
-            var jsonOptions = context.RequestServices
+            if (_cachedJsonOptions != null)
+                return _cachedJsonOptions;
+
+            _cachedJsonOptions = context.RequestServices
                                 .GetService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>>()
                                 ?.Value?.JsonSerializerOptions
                                 ?? new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
-            return jsonOptions;
+            return _cachedJsonOptions;
         }
 
         /// <summary>
@@ -327,53 +370,46 @@ namespace BlackDigital.AspNet.Rest
         /// <param name="actionKey">The action key used to look up input transform rules.</param>
         /// <param name="context">The HTTP context for the current request.</param>
         /// <param name="methodInfo">The method to prepare parameters for.</param>
+        /// <param name="values">The array to populate with parameter values (rented from ArrayPool by the caller).</param>
         /// <param name="routeValues">The route template values captured from the URL.</param>
-        /// <returns>An array of parameter values to pass to the method.</returns>
-        private async Task<object?[]> PrepareMethodParameters(string actionKey, HttpContext context, MethodInfo methodInfo,
-                                                           Dictionary<string, object> routeValues)
+        private async Task PrepareMethodParameters(string actionKey, HttpContext context, MethodInfo methodInfo,
+                                                   object?[] values, Dictionary<string, object> routeValues)
         {
             var jsonOptions = GetJsonOptions(context);
 
-            var parameters = methodInfo.GetParameters();
-            var values = new object?[parameters.Length];
+            // Use cached parameter metadata to avoid per-request reflection
+            // (GetParameters + GetCustomAttribute on every call).
+            var parameters = ParameterMetadataCache.Get(methodInfo);
 
             for (int i = 0; i < parameters.Length; i++)
             {
                 var parameter = parameters[i];
-                var parameterName = parameter.Name;
 
                 // CancellationToken is bound to the request's aborted token so
                 // long-running service methods respect client disconnects.
-                if (parameter.ParameterType == typeof(CancellationToken))
+                if (parameter.IsCancellationToken)
                 {
                     values[i] = context.RequestAborted;
                     continue;
                 }
 
-                // Verificar atributos de binding
-                var routeAttribute = parameter.GetCustomAttribute<PathAttribute>();
-                var bodyAttribute = parameter.GetCustomAttribute<BodyAttribute>();
-                var headerAttribute = parameter.GetCustomAttribute<HeaderAttribute>();
-                var queryAttribute = parameter.GetCustomAttribute<QueryAttribute>();
-
-                if (routeAttribute != null)
+                if (parameter.RouteAttribute != null)
                 {
-                    var routeKey = routeAttribute.Name ?? parameterName;
-                    if (routeKey != null && routeValues.ContainsKey(routeKey))
+                    if (parameter.RouteKey != null && routeValues.ContainsKey(parameter.RouteKey))
                     {
-                        values[i] = ConvertValue(routeValues[routeKey].ToString(), parameter.ParameterType);
+                        values[i] = ConvertValue(routeValues[parameter.RouteKey].ToString(), parameter.ParameterType);
                     }
                 }
-                else if (bodyAttribute != null)
+                else if (parameter.IsBody)
                 {
                     // [Body] parameters of type IFormFile / IFormFileCollection
                     // are read from the multipart form files instead of being
                     // JSON-deserialized.
-                    if (parameter.ParameterType == typeof(IFormFile))
+                    if (parameter.IsFormFile)
                     {
                         values[i] = context.Request.Form.Files.FirstOrDefault();
                     }
-                    else if (parameter.ParameterType == typeof(IFormFileCollection))
+                    else if (parameter.IsFormFileCollection)
                     {
                         values[i] = context.Request.Form.Files;
                     }
@@ -382,43 +418,41 @@ namespace BlackDigital.AspNet.Rest
                         values[i] = await TransformInputBodyAsync(actionKey, context, parameter);
                     }
                 }
-                else if (headerAttribute != null)
+                else if (parameter.HeaderAttribute != null)
                 {
-                    var headerKey = headerAttribute.Name ?? parameterName;
-                    if (headerKey != null && context.Request.Headers.ContainsKey(headerKey))
+                    if (parameter.HeaderKey != null && context.Request.Headers.ContainsKey(parameter.HeaderKey))
                     {
-                        values[i] = ConvertValue(context.Request.Headers[headerKey].ToString(), parameter.ParameterType);
+                        values[i] = ConvertValue(context.Request.Headers[parameter.HeaderKey].ToString(), parameter.ParameterType);
                     }
                 }
-                else if (queryAttribute != null)
+                else if (parameter.QueryAttribute != null)
                 {
-                    var queryKey = queryAttribute.Name ?? parameterName;
-                    if (IsSimpleType(parameter.ParameterType))
+                    if (parameter.IsSimpleType)
                     {
-                        if (queryKey != null && context.Request.Query.ContainsKey(queryKey))
+                        if (parameter.QueryKey != null && context.Request.Query.ContainsKey(parameter.QueryKey))
                         {
-                            values[i] = ConvertValue(context.Request.Query[queryKey].ToString(), parameter.ParameterType);
+                            values[i] = ConvertValue(context.Request.Query[parameter.QueryKey].ToString(), parameter.ParameterType);
                         }
                     }
                     else
                     {
-                        var bound = BindFromQuery(context.Request.Query, queryKey, parameter.ParameterType);
+                        var bound = BindFromQuery(context.Request.Query, parameter.QueryKey, parameter.ParameterType);
                         if (bound != null)
                             values[i] = bound;
                     }
                 }
                 else
                 {
-                    if (IsSimpleType(parameter.ParameterType))
+                    if (parameter.IsSimpleType)
                     {
-                        if (parameterName != null && context.Request.Query.ContainsKey(parameterName))
+                        if (parameter.Name != null && context.Request.Query.ContainsKey(parameter.Name))
                         {
-                            values[i] = ConvertValue(context.Request.Query[parameterName].ToString(), parameter.ParameterType);
+                            values[i] = ConvertValue(context.Request.Query[parameter.Name].ToString(), parameter.ParameterType);
                         }
                     }
                     else
                     {
-                        var bound = BindFromQuery(context.Request.Query, parameterName, parameter.ParameterType);
+                        var bound = BindFromQuery(context.Request.Query, parameter.Name, parameter.ParameterType);
                         if (bound != null)
                             values[i] = bound;
                     }
@@ -431,8 +465,6 @@ namespace BlackDigital.AspNet.Rest
                     values[i] = parameter.DefaultValue;
                 }
             }
-
-            return values;
         }
 
         /// <summary>
@@ -444,7 +476,7 @@ namespace BlackDigital.AspNet.Rest
         /// <param name="context">The HTTP context for the current request.</param>
         /// <param name="parameter">The target parameter whose type defines the deserialization target.</param>
         /// <returns>The deserialized (and optionally transformed) body object, or null when the body is empty.</returns>
-        private async Task<object?> TransformInputBodyAsync(string actionKey, HttpContext context, ParameterInfo parameter)
+        private async Task<object?> TransformInputBodyAsync(string actionKey, HttpContext context, ParameterMetadata parameter)
         {
             var jsonOptions = GetJsonOptions(context);
             var body = await ReadRequestBody(context);
@@ -459,7 +491,7 @@ namespace BlackDigital.AspNet.Rest
                 {
                     var version = context.Request.Query["api-version"].FirstOrDefault();
                     version = version ?? context.Request.Headers["x-api-version"].FirstOrDefault();
-                    version = version ?? "1970-01-01";
+                    version = version ?? string.Empty;
 
                     TransformKey key = new(actionKey, version, TransformDirection.Input);
                     Type type = transformManager.GetFirstInputType(key) ?? parameter.ParameterType;
@@ -493,7 +525,7 @@ namespace BlackDigital.AspNet.Rest
             {
                 var version = context.Request.Query["api-version"].FirstOrDefault();
                 version = version ?? context.Request.Headers["x-api-version"].FirstOrDefault();
-                version = version ?? "1970-01-01";
+                version = version ?? string.Empty;
                 TransformKey key = new(actionKey, version, TransformDirection.Output);
 
                 apiOutput = await transformManager.TransformAsync(key, apiOutput);
@@ -569,6 +601,36 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
+        /// Writes a <see cref="ProblemDetails"/> response body in the format
+        /// defined by RFC 7807. The response content type is set to
+        /// <c>application/problem+json</c> as recommended by the RFC.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="problem">The problem details to serialize.</param>
+        private async Task WriteProblemDetailsAsync(HttpContext context, ProblemDetails problem)
+        {
+            context.Response.ContentType = "application/problem+json";
+            var json = JsonSerializer.Serialize(problem, GetJsonOptions(context));
+            await context.Response.WriteAsync(json);
+        }
+
+        /// <summary>
+        /// Writes a <see cref="ProblemDetails"/> response with the given status,
+        /// title and detail. Convenience overload for the common error paths.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="status">The HTTP status code.</param>
+        /// <param name="title">A short, human-readable summary of the problem.</param>
+        /// <param name="detail">A human-readable explanation specific to this occurrence.</param>
+        private Task WriteProblemDetailsAsync(HttpContext context, int status, string title, string detail)
+            => WriteProblemDetailsAsync(context, new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Detail = detail
+            });
+
+        /// <summary>
         /// Processes the result of an action method invocation. Awaits
         /// <see cref="Task"/>/<see cref="ValueTask"/> returns, applies output
         /// transform rules, and writes the JSON response. Null or void results
@@ -595,7 +657,7 @@ namespace BlackDigital.AspNet.Rest
 
                 if (returnType.IsGenericType)
                 {
-                    result = returnType.GetProperty("Result")?.GetValue(task);
+                    result = MethodInvoker.GetTaskResult(task, returnType);
                 }
                 else
                 {
@@ -612,12 +674,8 @@ namespace BlackDigital.AspNet.Rest
             }
             else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
             {
-                // ValueTask<T> — extract the result via reflection.
-                var resultProperty = returnType.GetProperty("Result");
-                if (resultProperty != null)
-                {
-                    result = resultProperty.GetValue(result);
-                }
+                // ValueTask<T> — extract the result via cached compiled expression.
+                result = MethodInvoker.GetValueTaskResult(result, returnType);
             }
 
             result = await TransformOutputBodyAsync(actionKey, context, result);
@@ -632,15 +690,7 @@ namespace BlackDigital.AspNet.Rest
             // without materializing the whole collection in memory.
             if (IsAsyncEnumerable(result, out var asyncEnumerable, out var elementType))
             {
-                var serializeAsync = typeof(JsonSerializer)
-                    .GetMethods()
-                    .First(m => m.Name == nameof(JsonSerializer.SerializeAsync)
-                                && m.IsGenericMethod
-                                && m.GetParameters().Length == 3
-                                && m.GetParameters()[0].ParameterType == typeof(Stream));
-
-                var generic = serializeAsync.MakeGenericMethod(elementType);
-                await (Task)generic.Invoke(null, new object[] { context.Response.Body, asyncEnumerable, jsonOptions })!;
+                await MethodInvoker.SerializeAsyncEnumerableAsync(context.Response.Body, asyncEnumerable, elementType, jsonOptions);
                 return;
             }
 
@@ -806,18 +856,7 @@ namespace BlackDigital.AspNet.Rest
         /// <param name="type">The type to test.</param>
         /// <returns><c>true</c> when the type is simple; otherwise, <c>false</c>.</returns>
         private bool IsSimpleType(Type type)
-        {
-            var t = Nullable.GetUnderlyingType(type) ?? type;
-            if (t.IsPrimitive)
-                return true;
-            if (t == typeof(string) || t == typeof(decimal) || t == typeof(DateTime) || t == typeof(DateTimeOffset) || t == typeof(Guid))
-                return true;
-            if (t.IsEnum)
-                return true;
-            if (t == typeof(Id))
-                return true;
-            return false;
-        }
+            => RestParameterTypeCache.IsSimpleType(type);
 
         /// <summary>
         /// Binds a complex object from the query string. When the query contains

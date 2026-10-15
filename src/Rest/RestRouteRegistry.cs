@@ -11,9 +11,21 @@ namespace BlackDigital.AspNet.Rest
     /// the previous static-field capture that broke multi-host and parallel-test
     /// scenarios.
     /// </summary>
+    /// <remarks>
+    /// To keep request-time matching fast, routes are pre-processed at build time:
+    /// <list type="bullet">
+    /// <item>Each route's URL pattern is split into segments once.</item>
+    /// <item>Routes without template parameters are stored in a dictionary keyed
+    /// by the full lowercased path, enabling O(1) lookups for the common case.</item>
+    /// <item>Parameterized routes are grouped by segment count so matching only
+    /// considers candidates with the same number of segments as the request.</item>
+    /// </list>
+    /// </remarks>
     public sealed class RestRouteRegistry
     {
         private readonly Dictionary<string, List<RestRouteEntry>> _routesByMethod;
+        private readonly Dictionary<string, Dictionary<string, RestRouteEntry>> _staticRoutesByMethod;
+        private readonly Dictionary<string, Dictionary<int, List<RestRouteEntry>>> _parameterizedRoutesByMethodAndSegmentCount;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RestRouteRegistry"/> class
@@ -23,7 +35,7 @@ namespace BlackDigital.AspNet.Rest
         /// <param name="services">The service descriptors to scan for REST services.</param>
         public RestRouteRegistry(IEnumerable<ServiceDescriptor> services)
         {
-            _routesByMethod = BuildRoutes(services);
+            _routesByMethod = BuildRoutes(services, out _staticRoutesByMethod, out _parameterizedRoutesByMethodAndSegmentCount);
         }
 
         /// <summary>
@@ -35,9 +47,45 @@ namespace BlackDigital.AspNet.Rest
         public IReadOnlyList<RestRouteEntry> GetRoutesForMethod(string httpMethod)
             => _routesByMethod.TryGetValue(httpMethod, out var routes) ? routes : Array.Empty<RestRouteEntry>();
 
-        private static Dictionary<string, List<RestRouteEntry>> BuildRoutes(IEnumerable<ServiceDescriptor> services)
+        /// <summary>
+        /// Returns the static (non-parameterized) routes for the given HTTP method
+        /// keyed by their lowercased full path. Used for O(1) lookups of routes
+        /// without template parameters.
+        /// </summary>
+        /// <param name="httpMethod">The HTTP method to look up (case-insensitive).</param>
+        /// <returns>A read-only dictionary mapping lowercased paths to route entries, or an empty dictionary when none exist.</returns>
+        public IReadOnlyDictionary<string, RestRouteEntry> GetStaticRoutes(string httpMethod)
+            => _staticRoutesByMethod.TryGetValue(httpMethod, out var routes) ? routes : EmptyStaticRoutes;
+
+        /// <summary>
+        /// Returns the parameterized routes for the given HTTP method grouped by
+        /// the number of URL segments. Only routes with the same segment count as
+        /// the request path need to be considered during matching.
+        /// </summary>
+        /// <param name="httpMethod">The HTTP method to look up (case-insensitive).</param>
+        /// <returns>A read-only dictionary mapping segment counts to route entry lists, or an empty dictionary when none exist.</returns>
+        public IReadOnlyDictionary<int, IReadOnlyList<RestRouteEntry>> GetParameterizedRoutes(string httpMethod)
+        {
+            if (!_parameterizedRoutesByMethodAndSegmentCount.TryGetValue(httpMethod, out var bySegment))
+                return EmptyParameterizedRoutes;
+
+            var result = new Dictionary<int, IReadOnlyList<RestRouteEntry>>();
+            foreach (var kvp in bySegment)
+                result[kvp.Key] = kvp.Value;
+            return result;
+        }
+
+        private static readonly Dictionary<string, RestRouteEntry> EmptyStaticRoutes = new();
+        private static readonly Dictionary<int, IReadOnlyList<RestRouteEntry>> EmptyParameterizedRoutes = new();
+
+        private static Dictionary<string, List<RestRouteEntry>> BuildRoutes(
+            IEnumerable<ServiceDescriptor> services,
+            out Dictionary<string, Dictionary<string, RestRouteEntry>> staticRoutesByMethod,
+            out Dictionary<string, Dictionary<int, List<RestRouteEntry>>> parameterizedRoutesByMethodAndSegmentCount)
         {
             var routesByMethod = new Dictionary<string, List<RestRouteEntry>>(StringComparer.OrdinalIgnoreCase);
+            staticRoutesByMethod = new Dictionary<string, Dictionary<string, RestRouteEntry>>(StringComparer.OrdinalIgnoreCase);
+            parameterizedRoutesByMethodAndSegmentCount = new Dictionary<string, Dictionary<int, List<RestRouteEntry>>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var service in services)
             {
@@ -70,6 +118,35 @@ namespace BlackDigital.AspNet.Rest
                     }
 
                     list.Add(entry);
+
+                    // Bucket the route into either the static-lookup dictionary
+                    // or the parameterized group-by-segment-count structure.
+                    if (entry.HasParameters)
+                    {
+                        if (!parameterizedRoutesByMethodAndSegmentCount.TryGetValue(httpMethod, out var bySegment))
+                        {
+                            bySegment = new Dictionary<int, List<RestRouteEntry>>();
+                            parameterizedRoutesByMethodAndSegmentCount[httpMethod] = bySegment;
+                        }
+
+                        if (!bySegment.TryGetValue(entry.Segments.Length, out var paramList))
+                        {
+                            paramList = new List<RestRouteEntry>();
+                            bySegment[entry.Segments.Length] = paramList;
+                        }
+
+                        paramList.Add(entry);
+                    }
+                    else
+                    {
+                        if (!staticRoutesByMethod.TryGetValue(httpMethod, out var staticDict))
+                        {
+                            staticDict = new Dictionary<string, RestRouteEntry>(StringComparer.OrdinalIgnoreCase);
+                            staticRoutesByMethod[httpMethod] = staticDict;
+                        }
+
+                        staticDict[route] = entry;
+                    }
                 }
             }
 
@@ -93,6 +170,11 @@ namespace BlackDigital.AspNet.Rest
     /// A single registered REST route: its URL pattern, the service descriptor
     /// that owns it, and the method to invoke.
     /// </summary>
+    /// <remarks>
+    /// The URL pattern is pre-split into <see cref="Segments"/> at registry build
+    /// time so request-time matching does not allocate arrays by splitting the
+    /// pattern string on every request.
+    /// </remarks>
     public sealed class RestRouteEntry
     {
         /// <summary>
@@ -106,6 +188,11 @@ namespace BlackDigital.AspNet.Rest
             RoutePattern = routePattern;
             Service = service;
             Method = method;
+
+            // Pre-split the pattern into segments and detect template parameters
+            // once at build time, avoiding per-request string splitting.
+            Segments = routePattern.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            HasParameters = Segments.Any(s => s.StartsWith("{") && s.EndsWith("}"));
         }
 
         /// <summary>
@@ -122,5 +209,19 @@ namespace BlackDigital.AspNet.Rest
         /// Gets the method to invoke when the route matches.
         /// </summary>
         public MethodInfo Method { get; }
+
+        /// <summary>
+        /// Gets the URL pattern pre-split into segments (without empty entries).
+        /// Computed once at build time to avoid per-request allocations.
+        /// </summary>
+        public string[] Segments { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the route pattern contains template
+        /// parameters (e.g. <c>{id}</c>). Static routes can be looked up in O(1)
+        /// from a dictionary; parameterized routes require segment-by-segment
+        /// matching.
+        /// </summary>
+        public bool HasParameters { get; }
     }
 }

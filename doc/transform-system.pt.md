@@ -1505,7 +1505,7 @@ Para cada requisição, o middleware REST determina a versão solicitada verific
 
 1. **Query string**: `?api-version=2024-01-01`
 2. **Header**: `x-api-version: 2024-01-01`
-3. **Fallback padrão**: `1970-01-01` (quando nenhum dos dois está presente)
+3. **Fallback padrão**: string vazia (quando nenhum dos dois está presente — nenhuma transformação é aplicada)
 
 ### Encadeamento de Regras
 
