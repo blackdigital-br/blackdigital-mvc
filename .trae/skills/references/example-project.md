@@ -11,19 +11,19 @@ The example has:
 - Transformation rules: `SaveUserTransformRule` (input/output), `OldSaveUsertoSaveUserTransformRule`, `SaveUserIdTransformRule`
 - OpenAPI configured with title, version, security schemes, Scalar
 - Razor Pages (Index, Privacy, Error)
-- No auth, no email, no security, no complex binding demos
+- No JWT/login flow, no email, no complex binding demos
 
 ## High-priority additions
 
 ### 1. Authentication and JWT
 
-**Why:** The framework ships `JwtTokenService` (from `BlackDigital.Domain`) and `[Action(authorize: true)]`, but the example only uses `authorize: false`. Users never see how auth flows end-to-end.
+**Why:** The framework ships `JwtTokenService` (from `BlackDigital.Domain`) and enforces `[Authorize]` (from `BlackDigital.Domain.Security`) on the service implementation, but the example only marks `SaveUserAsync` with a plain `[Authorize]`. Users never see how auth flows end-to-end.
 
 **What to add:**
 - Register `JwtTokenService` via `AddJwtTokenService(builder.Configuration)`
 - Add a `Jwt` section to `appsettings.json`
 - Create a `Login` action that validates credentials and returns a JWT
-- Add at least one action with `authorize: true` to show protected routes
+- Show a protected action using `[Authorize(Roles = ...)]` and/or `[Authorize(Policy = ...)]` on the implementation
 - Configure `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` so `UseAuthorization()` works
 
 ### 2. Password hashing

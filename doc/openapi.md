@@ -71,7 +71,7 @@ app.Run();
 3. Interfaces decorated with `[Service]` (from `BlackDigital.Rest`) become API tags.
 4. Methods decorated with `[Action]` become operations, with their `[Path]`, `[Body]`, `[Query]`, and `[Header]` parameters mapped to OpenAPI parameters and request bodies.
 5. The return type becomes the response schema for `200 OK`.
-6. Methods/operations flagged with `authorize: true` get the preferred security schemes applied.
+6. Operations whose service **implementation** declares `[Authorize]` (class or matching method) get the preferred security schemes applied.
 
 ## Tag and Operation Naming
 

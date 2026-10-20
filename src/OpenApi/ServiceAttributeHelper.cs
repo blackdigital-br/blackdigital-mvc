@@ -4,9 +4,8 @@ using System.Reflection;
 namespace BlackDigital.AspNet.OpenApi
 {
     /// <summary>
-    /// Helper methods for extracting route, authorization, policy, name and
-    /// description information from BlackDigital.Rest service attributes via
-    /// reflection.
+    /// Helper methods for extracting route, name and description information
+    /// from BlackDigital.Rest service attributes via reflection.
     /// </summary>
     public static class ServiceAttributeHelper
     {
@@ -84,62 +83,6 @@ namespace BlackDigital.AspNet.OpenApi
                 return toString;
 
             return "api/unknown";
-        }
-
-        /// <summary>
-        /// Determines whether a service attribute declares that authorization is
-        /// required by inspecting a boolean <c>Authorize</c> property or field.
-        /// </summary>
-        /// <param name="serviceAttribute">The service attribute instance to inspect.</param>
-        /// <returns><c>true</c> when authorization is required; otherwise, <c>false</c>.</returns>
-        public static bool GetAuthorize(ServiceAttribute serviceAttribute)
-        {
-            var type = serviceAttribute.GetType();
-
-            var prop = type.GetProperty("Authorize");
-            if (prop != null && prop.PropertyType == typeof(bool))
-            {
-                var val = prop.GetValue(serviceAttribute);
-                return val is true;
-            }
-
-            var field = type.GetField("Authorize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(bool))
-            {
-                var val = field.GetValue(serviceAttribute);
-                return val is true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Gets the authorization policy name declared on a service attribute by
-        /// inspecting a <c>Policy</c> property or field.
-        /// </summary>
-        /// <param name="serviceAttribute">The service attribute instance to inspect.</param>
-        /// <returns>The policy name, or <c>null</c> when none is declared.</returns>
-        public static string? GetPolicy(ServiceAttribute serviceAttribute)
-        {
-            var type = serviceAttribute.GetType();
-
-            var prop = type.GetProperty("Policy");
-            if (prop != null && prop.PropertyType == typeof(string))
-            {
-                var val = prop.GetValue(serviceAttribute) as string;
-                if (!string.IsNullOrWhiteSpace(val))
-                    return val;
-            }
-
-            var field = type.GetField("Policy", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(string))
-            {
-                var val = field.GetValue(serviceAttribute) as string;
-                if (!string.IsNullOrWhiteSpace(val))
-                    return val;
-            }
-
-            return null;
         }
 
         /// <summary>

@@ -16,76 +16,14 @@ namespace BlackDigital.AspNet.Test.OpenApi
         }
 
         [Fact]
-        public void GetAuthorize_WhenTrue_ShouldReturnTrue()
-        {
-            var attr = new ServiceAttribute("api/users") { Authorize = true };
-
-            var result = ServiceAttributeHelper.GetAuthorize(attr);
-
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void GetAuthorize_WhenFalse_ShouldReturnFalse()
-        {
-            var attr = new ServiceAttribute("api/users") { Authorize = false };
-
-            var result = ServiceAttributeHelper.GetAuthorize(attr);
-
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void GetAuthorize_WhenNotSet_ShouldReturnFalse()
-        {
-            var attr = new ServiceAttribute("api/users");
-
-            var result = ServiceAttributeHelper.GetAuthorize(attr);
-
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsSet_ShouldReturnValue()
-        {
-            var attr = new ServiceAttribute("api/users") { Policy = "Category" };
-
-            var result = ServiceAttributeHelper.GetPolicy(attr);
-
-            Assert.Equal("Category", result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsNull_ShouldReturnNull()
-        {
-            var attr = new ServiceAttribute("api/users");
-
-            var result = ServiceAttributeHelper.GetPolicy(attr);
-
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsWhitespace_ShouldReturnNull()
-        {
-            var attr = new ServiceAttribute("api/users") { Policy = "   " };
-
-            var result = ServiceAttributeHelper.GetPolicy(attr);
-
-            Assert.Null(result);
-        }
-
-        [Fact]
         public void GetName_WhenNameIsSet_ShouldReturnValue()
         {
             var attr = new ServiceAttribute(
                 baseRoute: "api/users",
-                authorize: false,
                 version: null!,
                 name: "User Management",
                 description: null!,
-                resourceType: null!,
-                policy: null!);
+                resourceType: null!);
 
             var result = ServiceAttributeHelper.GetName(attr);
 
@@ -97,12 +35,10 @@ namespace BlackDigital.AspNet.Test.OpenApi
         {
             var attr = new ServiceAttribute(
                 baseRoute: "api/users",
-                authorize: false,
                 version: null!,
                 name: null!,
                 description: null!,
-                resourceType: null!,
-                policy: null!);
+                resourceType: null!);
 
             var result = ServiceAttributeHelper.GetName(attr);
 
@@ -114,12 +50,10 @@ namespace BlackDigital.AspNet.Test.OpenApi
         {
             var attr = new ServiceAttribute(
                 baseRoute: "api/users",
-                authorize: false,
                 version: null!,
                 name: "   ",
                 description: null!,
-                resourceType: null!,
-                policy: null!);
+                resourceType: null!);
 
             var result = ServiceAttributeHelper.GetName(attr);
 
@@ -131,12 +65,10 @@ namespace BlackDigital.AspNet.Test.OpenApi
         {
             var attr = new ServiceAttribute(
                 baseRoute: "api/users",
-                authorize: false,
                 version: null!,
                 name: null!,
                 description: "Endpoints for managing users.",
-                resourceType: null!,
-                policy: null!);
+                resourceType: null!);
 
             var result = ServiceAttributeHelper.GetDescription(attr);
 
@@ -148,12 +80,10 @@ namespace BlackDigital.AspNet.Test.OpenApi
         {
             var attr = new ServiceAttribute(
                 baseRoute: "api/users",
-                authorize: false,
                 version: null!,
                 name: null!,
                 description: null!,
-                resourceType: null!,
-                policy: null!);
+                resourceType: null!);
 
             var result = ServiceAttributeHelper.GetDescription(attr);
 

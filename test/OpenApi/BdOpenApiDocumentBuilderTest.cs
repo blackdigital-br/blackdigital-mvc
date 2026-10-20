@@ -374,7 +374,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var path = doc.Paths["/api/secure/open"];
             var op = path!.Operations![HttpMethod.Get];
-            // ISecureService has authorize: true, so even "open" requires auth
+            // SecureService has a class-level [Authorize(Policy = "Admin")],
+            // so even "open" requires auth.
             Assert.NotNull(op.Security);
             Assert.NotEmpty(op.Security);
         }
@@ -388,7 +389,8 @@ namespace BlackDigital.AspNet.Test.OpenApi
 
             var path = doc.Paths["/api/secure/data"];
             var op = path!.Operations![HttpMethod.Get];
-            // ISecureService has policy "Admin", and data action has policy "Read"
+            // SecureService has a class-level policy "Admin" and GetDataAsync
+            // declares an additional policy "Read".
             Assert.NotNull(op.Security);
             Assert.NotEmpty(op.Security);
         }

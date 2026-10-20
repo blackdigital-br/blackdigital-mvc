@@ -104,17 +104,21 @@ using BlackDigital.Rest;
 [Service("api/users")]
 public interface IUserService
 {
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
-    [Action(method: RestMethod.Post, authorize: true)]
+    [Action(method: RestMethod.Post)]
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 }
 ```
 
-Implemente a interface como uma classe comum (não é necessário herdar de controller):
+Implemente a interface como uma classe comum (não é necessário herdar de controller). Os
+requisitos de acesso são declarados na **implementação** com `[Authorize]` (de
+`BlackDigital.Domain.Security`), nunca na interface:
 
 ```csharp
+using BlackDigital.Domain.Security;
+
 public class UserService : IUserService
 {
     public async Task<User> GetUserAsync(int id)
@@ -123,6 +127,7 @@ public class UserService : IUserService
         return await GetUserByIdAsync(id);
     }
 
+    [Authorize]   // qualquer usuário autenticado; restrinja com [Authorize(Roles = ...)] ou [Authorize(Policy = ...)]
     public async Task<User> CreateUserAsync(CreateUserRequest request)
     {
         // Sua lógica aqui
@@ -139,7 +144,7 @@ Crie APIs REST completas sem controllers tradicionais:
 - **Binding Automático**: Parâmetros `[Path]`, `[Body]`, `[Query]`, `[Header]` vinculados automaticamente
 - **Suporte nativo a `Id`**: Model binder e route constraint customizados para `BlackDigital.Model.Id`
 - **CancellationToken**: Token de cancelamento da requisição é vinculado automaticamente
-- **Autorização**: Flag `authorize` por ação ou por serviço
+- **Autorização**: `[Authorize]` (roles/policy) declarado na implementação do serviço
 - **Business exceptions**: `BusinessException` mapeia diretamente para códigos de status HTTP
 - **Suporte Completo**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
 - **Async/Await**: Suporte nativo a `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>`
@@ -181,10 +186,10 @@ Documentação automática sem Swashbuckle:
 [Service("api/products")]
 public interface IProductService
 {
-    [Action(method: RestMethod.Get, authorize: false)]
+    [Action(method: RestMethod.Get)]
     Task<IEnumerable<Product>> GetProductsAsync();
 
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<Product> GetProductAsync([Path] int id);
 
     [Action(method: RestMethod.Post)]

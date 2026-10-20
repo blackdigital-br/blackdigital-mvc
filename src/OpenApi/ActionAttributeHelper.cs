@@ -3,9 +3,8 @@ using System.Reflection;
 namespace BlackDigital.AspNet.OpenApi
 {
     /// <summary>
-    /// Helper methods for extracting route, HTTP method, authorization,
-    /// policy, name and description information from BlackDigital.Rest action
-    /// attributes via reflection.
+    /// Helper methods for extracting route, HTTP method, name and description
+    /// information from BlackDigital.Rest action attributes via reflection.
     /// </summary>
     public static class ActionAttributeHelper
     {
@@ -77,59 +76,6 @@ namespace BlackDigital.AspNet.OpenApi
                 "options" => HttpMethod.Options,
                 _ => HttpMethod.Get
             };
-        }
-
-        /// <summary>
-        /// Determines whether an action attribute declares that authorization is
-        /// required by inspecting a boolean <c>Authorize</c> property or field.
-        /// </summary>
-        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
-        /// <returns><c>true</c> when authorization is required; otherwise, <c>false</c>.</returns>
-        public static bool GetAuthorize(object actionAttribute)
-        {
-            var type = actionAttribute.GetType();
-            var prop = type.GetProperty("Authorize");
-            if (prop != null && prop.PropertyType == typeof(bool))
-            {
-                var val = prop.GetValue(actionAttribute);
-                return val is true;
-            }
-            var field = type.GetField("Authorize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(bool))
-            {
-                var val = field.GetValue(actionAttribute);
-                return val is true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Gets the authorization policy name declared on an action attribute by
-        /// inspecting a <c>Policy</c> property or field.
-        /// </summary>
-        /// <param name="actionAttribute">The action attribute instance to inspect.</param>
-        /// <returns>The policy name, or <c>null</c> when none is declared.</returns>
-        public static string? GetPolicy(object actionAttribute)
-        {
-            var type = actionAttribute.GetType();
-
-            var prop = type.GetProperty("Policy");
-            if (prop != null && prop.PropertyType == typeof(string))
-            {
-                var val = prop.GetValue(actionAttribute) as string;
-                if (!string.IsNullOrWhiteSpace(val))
-                    return val;
-            }
-
-            var field = type.GetField("Policy", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(string))
-            {
-                var val = field.GetValue(actionAttribute) as string;
-                if (!string.IsNullOrWhiteSpace(val))
-                    return val;
-            }
-
-            return null;
         }
 
         /// <summary>
