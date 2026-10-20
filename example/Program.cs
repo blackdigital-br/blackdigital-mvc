@@ -3,15 +3,57 @@ using BlackDigital.AspNet.Example.Transform;
 using BlackDigital.AspNet.OpenApi;
 using BlackDigital.AspNet.Rest;
 using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 
+// Required by BdHttpContextHelper / IHttpContextAccessor consumers.
+builder.Services.AddHttpContextAccessor();
+
+// Registers ITokenService (BlackDigital.Domain.Security.JwtTokenService) reading
+// the "Jwt" section. It fails fast at startup when SecretKey/Issuer/Audience are
+// missing, so production must supply Jwt__SecretKey (>= 32 bytes) via env vars.
+builder.Services.AddJwtTokenService(builder.Configuration);
+
+// JWT bearer authentication: turns the incoming "Authorization: Bearer <token>"
+// header into HttpContext.User, which is what the REST middleware inspects.
+var jwt = builder.Configuration.GetSection("Jwt");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwt["Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SecretKey"]!)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+// Named policies referenced by [Authorize(Policy = "...")] on the implementations.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Users.Read", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("Users.Write", policy => policy.RequireRole("Admin"));
+});
+
 // Novo approach com middleware - substitui a geração dinâmica de controllers
 builder.Services.AddRestServices(restService =>
-    restService.AddService<IUser, UserImplementation>());
+    restService.AddService<IUser, UserImplementation>()
+               .AddService<IAuth, AuthImplementation>()
+               .AddService<ISecurityDemo, SecurityDemoImplementation>()
+               .AddService<IAdminArea, AdminAreaImplementation>());
 
 // Adiciona as configurações padrão do MVC (model binders, constraints)
 builder.Services.AddRestMvcOptions();
@@ -54,7 +96,12 @@ builder.Services.AddOpenApi(options =>
     // When IncludedAssemblyPrefixes is empty, every non-BCL assembly is
     // scanned; for templates we want the stricter behavior: limit to our
     // product assemblies plus any other BD-specific module.
-    options.IncludedAssemblyPrefixes.Add("MyProject");
+    options.IncludedAssemblyPrefixes.Add("BlackDigital.AspNet.Example");
+
+    // The default exclusions drop every "BlackDigital.AspNet*" assembly, which
+    // would also hide this example's own services — remove it so they are
+    // discovered and shown in Scalar.
+    options.ExcludedAssemblyPrefixes.Remove("BlackDigital.AspNet");
 
     // Optional: tighten or relax exclusions on top of the BCL defaults.
     // options.ExcludedAssemblyPrefixes.Add("MyProject.Other.Shared");
@@ -86,6 +133,10 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Populates HttpContext.User from the Bearer token. It MUST run before the REST
+// middleware, otherwise [Authorize] would always see an anonymous user.
+app.UseAuthentication();
 
 // Adiciona o middleware REST que substitui os controllers dinâmicos
 app.UseRestMiddleware();

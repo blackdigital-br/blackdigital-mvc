@@ -69,7 +69,13 @@ When `options.Enabled` is `false`, `MapOpenApi()` returns early and registers no
 
 ## Authorization in the document
 
-An operation gets the Bearer security requirement when `action.Authorize == true` **or** `service.Authorize == true`, matching the runtime check in `RestMiddleware`. The global Bearer requirement (when `ApplyBearerAsGlobalSecurityRequirement` is true) applies to every operation.
+An operation gets the Bearer security requirement when the service **implementation**
+declares at least one `[Authorize]` (`BlackDigital.Domain.Security`) on the class or on
+the matching method. Because the attribute lives on the implementation and the builder
+only scans interfaces, `AuthorizeAttributeHelper.FindImplementation(...)` resolves the
+concrete type among the scanned candidates and `HasRequirements(...)` checks its
+requirements. This matches the runtime check in `RestMiddleware`. The global Bearer
+requirement (when `ApplyBearerAsGlobalSecurityRequirement` is true) applies to every operation.
 
 ## Schema generation
 

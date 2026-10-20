@@ -12,8 +12,6 @@ namespace BlackDigital.AspNet.Test.OpenApi
         {
             public string? Route { get; set; }
             public HttpMethod? Method { get; set; }
-            public bool Authorize { get; set; }
-            public string? Policy { get; set; }
             public string? Name { get; set; }
             public string? Description { get; set; }
 
@@ -55,56 +53,6 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var result = ActionAttributeHelper.GetOperationType(attr);
 
             Assert.Equal(methodName.ToLowerInvariant(), result.ToString()!.ToLowerInvariant());
-        }
-
-        [Fact]
-        public void GetAuthorize_WhenTrue_ShouldReturnTrue()
-        {
-            var attr = new StubActionAttribute { Authorize = true };
-
-            var result = ActionAttributeHelper.GetAuthorize(attr);
-
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void GetAuthorize_WhenFalse_ShouldReturnFalse()
-        {
-            var attr = new StubActionAttribute { Authorize = false };
-
-            var result = ActionAttributeHelper.GetAuthorize(attr);
-
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsSet_ShouldReturnValue()
-        {
-            var attr = new StubActionAttribute { Policy = "Category.Read" };
-
-            var result = ActionAttributeHelper.GetPolicy(attr);
-
-            Assert.Equal("Category.Read", result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsNull_ShouldReturnNull()
-        {
-            var attr = new StubActionAttribute { Policy = null };
-
-            var result = ActionAttributeHelper.GetPolicy(attr);
-
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetPolicy_WhenPolicyIsWhitespace_ShouldReturnNull()
-        {
-            var attr = new StubActionAttribute { Policy = "   " };
-
-            var result = ActionAttributeHelper.GetPolicy(attr);
-
-            Assert.Null(result);
         }
 
         [Fact]
@@ -173,11 +121,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var attr = new BlackDigital.Rest.ActionAttribute(
                 route: "users",
                 method: BlackDigital.Rest.RestMethod.Get,
-                authorize: false,
                 returnIsSuccess: false,
                 keyIdentifier: null!,
                 version: null!,
-                policy: null!,
                 name: "Get Users",
                 description: null!,
                 resourceType: null!);
@@ -193,11 +139,9 @@ namespace BlackDigital.AspNet.Test.OpenApi
             var attr = new BlackDigital.Rest.ActionAttribute(
                 route: "users",
                 method: BlackDigital.Rest.RestMethod.Get,
-                authorize: false,
                 returnIsSuccess: false,
                 keyIdentifier: null!,
                 version: null!,
-                policy: null!,
                 name: null!,
                 description: "Fetches the user list.",
                 resourceType: null!);

@@ -8,10 +8,10 @@ namespace BlackDigital.AspNet.Example.Services
     [Service("api/user")]
     public interface IUser
     {
-        [Action("{name}", method: RestMethod.Get, authorize: false)]
+        [Action("{name}", method: RestMethod.Get)]
         Task<string> GetUserAsync([Path] string name);
 
-        [Action(method: RestMethod.Post, authorize: false)]
+        [Action(method: RestMethod.Post)]
         [BlackDigital.AspNet.Rest.Transform(typeof(OldSaveUsertoSaveUserTransformRule), "2020-10-10", TransformDirection.Input)]
         Task<SaveUser> SaveUserAsync([Body] SaveUser user);
     }   

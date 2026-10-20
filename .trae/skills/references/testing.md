@@ -107,7 +107,8 @@ These modules have **zero or incomplete** test coverage. Adding tests here is hi
 - `BdOpenApiSchemaGenerator` — primitive, enum, collection, dictionary, nullable, cycle handling
 - `OpenApiDocumentProvider` — caching, per-scheme+host document generation
 - `OpenApiEndpointRouteBuilderExtensions` — `AddOpenApi`, `MapOpenApi`, `Enabled` gating
-- `ServiceAttributeHelper` / `ActionAttributeHelper` — route/method/authorize resolution
+- `ServiceAttributeHelper` / `ActionAttributeHelper` — route/method resolution
+- `AuthorizeAttributeHelper` — implementation resolution and `[Authorize]` requirement discovery
 
 ### Security (no tests at all)
 - `JwtTokenService` (from `BlackDigital.Domain`) — secret key length validation, token generation, validation, refresh token randomness, `jti` extraction, expiry checks

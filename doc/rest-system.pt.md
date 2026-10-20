@@ -70,19 +70,19 @@ using BlackDigital.Rest;
 [Service("api/users")]
 public interface IUserService
 {
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
-    [Action(method: RestMethod.Post, authorize: true)]
+    [Action(method: RestMethod.Post)]
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 
-    [Action("{id}", method: RestMethod.Put, authorize: true)]
+    [Action("{id}", method: RestMethod.Put)]
     Task<User> UpdateUserAsync([Path] int id, [Body] UpdateUserRequest request);
 
-    [Action("{id}", method: RestMethod.Delete, authorize: true)]
+    [Action("{id}", method: RestMethod.Delete)]
     Task DeleteUserAsync([Path] int id);
 
-    [Action("search", method: RestMethod.Get, authorize: false)]
+    [Action("search", method: RestMethod.Get)]
     Task<List<User>> SearchUsersAsync([Query] string filter, [Query] int page = 1);
 }
 ```
@@ -167,16 +167,29 @@ Define a rota base do serviço:
 ```
 
 #### ActionAttribute
-Configura métodos HTTP e rotas específicas:
+Configura o método HTTP e a rota específica:
 ```csharp
-[Action("{id}", method: RestMethod.Get, authorize: false)]
+[Action("{id}", method: RestMethod.Get)]
 // Rota: GET /api/users/{id}
-// Autorização: não requerida
 
 [Action("search", method: RestMethod.Get)]
 // Rota: GET /api/users/search
-// Autorização: requerida (padrão)
 ```
+
+#### AuthorizeAttribute (na implementação)
+A autorização **não** é configurada por `[Service]`/`[Action]`. Ela é declarada com
+`[Authorize]` (`BlackDigital.Domain.Security`) na **implementação** do serviço (classe
+e/ou método):
+
+```csharp
+[Authorize]                              // qualquer usuário autenticado
+[Authorize(Roles = new[] { "Admin" })]   // qualquer um dos papéis listados
+[Authorize(Policy = "Users.Write")]      // policy de autorização nomeada
+```
+
+Requisitos na classe valem para todas as ações; requisitos no método valem só para
+aquela ação. Quando vários requisitos se aplicam, o acesso é concedido se **qualquer**
+um for satisfeito (OR).
 
 #### Atributos de Binding
 - **`[Path]`**: Extrai valores da rota da URL
@@ -191,7 +204,7 @@ Configura métodos HTTP e rotas específicas:
 public interface IUserService
 {
     // GET /api/users/{id}
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
     // POST /api/users
@@ -199,7 +212,7 @@ public interface IUserService
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 
     // GET /api/users/search?filter=john&page=1&size=10
-    [Action("search", method: RestMethod.Get, authorize: false)]
+    [Action("search", method: RestMethod.Get)]
     Task<PagedResult<User>> SearchAsync(
         [Query] string filter,
         [Query] int page = 1,
@@ -218,23 +231,48 @@ public interface IUserService
 
 ### 5. Exemplo com Autorização
 
+Os requisitos de acesso são declarados na **implementação** do serviço, não na interface.
+Declare-os por método quando apenas algumas ações forem protegidas:
+
 ```csharp
 [Service("api/admin")]
 public interface IAdminService
 {
-    // Público - não requer autorização
-    [Action("health", method: RestMethod.Get, authorize: false)]
     Task<HealthStatus> GetHealthAsync();
-
-    // Requer autorização (padrão)
-    [Action("users", method: RestMethod.Get)]
     Task<List<User>> GetAllUsersAsync();
-
-    // Requer autorização específica
-    [Action("users/{id}/ban", method: RestMethod.Post, authorize: true)]
+    Task<string> GetReportsAsync();
     Task BanUserAsync([Path] int id, [Body] BanRequest request);
 }
+
+public class AdminService : IAdminService
+{
+    // Sem [Authorize] → público.
+    public Task<HealthStatus> GetHealthAsync() => ...;
+
+    // Qualquer usuário autenticado.
+    [Authorize]
+    public Task<List<User>> GetAllUsersAsync() => ...;
+
+    // Apenas "Admin" ou "Manager".
+    [Authorize(Roles = new[] { "Admin", "Manager" })]
+    public Task<string> GetReportsAsync() => ...;
+
+    // Restrito por uma policy nomeada.
+    [Authorize(Policy = "Users.Ban")]
+    public Task BanUserAsync(int id, BanRequest request) => ...;
+}
 ```
+
+Ou proteja todas as ações de uma vez com um requisito no nível da classe:
+
+```csharp
+[Authorize(Policy = "Admin")]
+public class AuditService : IAuditService { /* ... */ }
+```
+
+Quando o chamador não está autenticado o middleware retorna `401 Unauthorized`; quando
+autenticado mas sem permissão, `403 Forbidden`. Ambos são respostas `ProblemDetails`
+(`application/problem+json`).
 
 ## Integração com Sistema de Transformação
 
@@ -563,9 +601,9 @@ O `RestMiddleware` é o coração do sistema REST, responsável por interceptar 
 public interface IUserService { }
 ```
 
-**ActionAttribute**: Configura métodos HTTP e rotas específicas
+**ActionAttribute**: Configura o método HTTP e a rota específica
 ```csharp
-[Action(method: RestMethod.Get, route: "{id}", authorize: true)]
+[Action(method: RestMethod.Get, route: "{id}")]
 Task<User> GetUserAsync([Path] int id);
 ```
 
@@ -631,20 +669,28 @@ builder.Services.AddRestServices(rest =>
 
 **Autorização Flexível:**
 
-A autorização é controlada pela flag booleana `authorize`, que pode ser definida no nível da **ação** ou herdada do nível do **serviço** (`[Service]`). Quando qualquer uma for `true`, o middleware verifica `context.User.Identity.IsAuthenticated` e retorna `401 Unauthorized` se o usuário não estiver autenticado.
+A autorização é declarada com `[Authorize]` (`BlackDigital.Domain.Security`) na
+**implementação** do serviço — na classe (vale para todas as ações) ou em um método
+(vale só para aquela ação). Use `Roles` e/ou `Policy` para restringir; quando vários
+requisitos se aplicam, qualquer requisito satisfeito concede acesso (OR). O middleware
+retorna `401 Unauthorized` para chamadores não autenticados e `403 Forbidden` para
+chamadores autenticados que não satisfazem nenhum requisito, ambos como `ProblemDetails`.
 
 ```csharp
-[Service("api/admin")]
 public interface IAdminService
 {
-    // Público — não requer autorização
-    [Action("health", method: RestMethod.Get, authorize: false)]
     Task<HealthStatus> GetHealthAsync();
-
-    // Requer autorização (authorize padrão é true no nível da ação,
-    // ou herda true de [Service] quando a ação omite)
-    [Action("users", method: RestMethod.Get, authorize: true)]
     Task<List<User>> GetAllUsersAsync();
+}
+
+public class AdminService : IAdminService
+{
+    // Público — não requer autorização
+    public Task<HealthStatus> GetHealthAsync() => ...;
+
+    // Requer um usuário autenticado
+    [Authorize]
+    public Task<List<User>> GetAllUsersAsync() => ...;
 }
 ```
 

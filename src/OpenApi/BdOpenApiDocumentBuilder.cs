@@ -1,4 +1,5 @@
 using System.Reflection;
+using BlackDigital.AspNet.Security;
 using BlackDigital.Rest;
 using Microsoft.OpenApi;
 
@@ -110,10 +111,10 @@ namespace BlackDigital.AspNet.OpenApi
             }
 
             // --- Dynamic service endpoints from BlackDigital interfaces --------
-            var assemblies = GetCandidateAssemblies();
+            var assemblies = GetCandidateAssemblies().ToList();
+            var candidateTypes = assemblies.SelectMany(SafeGetTypes).ToList();
 
-            var serviceInterfaces = assemblies
-                .SelectMany(SafeGetTypes)
+            var serviceInterfaces = candidateTypes
                 .Where(t => t.IsInterface && t.GetCustomAttribute<ServiceAttribute>() != null)
                 .ToList();
 
@@ -169,6 +170,12 @@ namespace BlackDigital.AspNet.OpenApi
                 var baseRoute = ServiceAttributeHelper.GetRoute(serviceAttr).Trim('/');
                 var (_, serviceTagRef) = tagsByInterface[iface];
 
+                // Authorization is declared with [Authorize] (BlackDigital.Domain)
+                // on the service implementation class and/or on the implementation
+                // method, never on the interface. Resolve the implementation type
+                // to know whether the operation requires security.
+                var implementationType = AuthorizeAttributeHelper.FindImplementation(iface, candidateTypes);
+
                 // A service-level [Obsolete] deprecates every operation of the
                 // interface, even when the individual method is not marked.
                 var serviceIsDeprecated = iface.GetCustomAttribute<ObsoleteAttribute>() != null;
@@ -195,18 +202,10 @@ namespace BlackDigital.AspNet.OpenApi
                             ? $"Deprecated: {methodObsolete.Message}"
                             : $"{actionDescription} (Deprecated: {methodObsolete.Message})";
                     }
-                    // Authorization is required when declared at the action level OR
-                    // inherited from the service-level [ServiceAttribute], OR when a
-                    // policy is defined at either level — matching the runtime check
-                    // in RestMiddleware (service policy + action policy are combined
-                    // with a dot separator, e.g. "Category.Read").
-                    var actionRequiresAuth = ActionAttributeHelper.GetAuthorize(actionAttr);
-                    var serviceRequiresAuth = ServiceAttributeHelper.GetAuthorize(serviceAttr);
-                    var actionPolicy = ActionAttributeHelper.GetPolicy(actionAttr);
-                    var servicePolicy = ServiceAttributeHelper.GetPolicy(serviceAttr);
-                    var hasPolicy = !string.IsNullOrWhiteSpace(servicePolicy)
-                                 || !string.IsNullOrWhiteSpace(actionPolicy);
-                    var requiresAuth = actionRequiresAuth || serviceRequiresAuth || hasPolicy;
+
+                    // The operation requires authorization when the implementation
+                    // class or the implementation method carries [Authorize].
+                    var requiresAuth = AuthorizeAttributeHelper.HasRequirements(implementationType, method);
 
                     var fullRoute = "/" + string.Join("/",
                         new[] { baseRoute, actionRoute }.Where(s => !string.IsNullOrWhiteSpace(s)));

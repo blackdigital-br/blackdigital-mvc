@@ -1,6 +1,8 @@
 using BlackDigital.AspNet.Rest.Transforms;
+using BlackDigital.AspNet.Security;
 using BlackDigital.Model;
 using BlackDigital.Rest;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,9 +14,11 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Collections;
 using System.ComponentModel.DataAnnotations;
+using AuthorizeAttribute = BlackDigital.Domain.Security.AuthorizeAttribute;
 
 namespace BlackDigital.AspNet.Rest
 {
@@ -187,46 +191,24 @@ namespace BlackDigital.AspNet.Rest
 
             try
             {
-                // Verificar autorização
                 var actionAttribute = methodInfo.GetCustomAttribute<ActionAttribute>();
                 var serviceAttribute = serviceDescriptor.ServiceType.GetCustomAttribute<ServiceAttribute>();
 
                 var actionKey = actionAttribute?.KeyIdentifier ?? $"{actionAttribute?.Method.ToString().ToUpperInvariant()}:{serviceAttribute?.BaseRoute}/{actionAttribute?.Route}";
 
-                // Combine service-level policy prefix with action-level policy suffix.
-                // Examples: service "Category" + action "Read" => "Category.Read"
-                //           service "Category" + action null   => "Category"
-                var requiredPolicy = CombinePolicies(serviceAttribute?.Policy, actionAttribute?.Policy);
-
-                var requiresAuth = (actionAttribute?.Authorize == true)
-                                || (serviceAttribute?.Authorize == true)
-                                || !string.IsNullOrEmpty(requiredPolicy);
-
-                if (requiresAuth)
+                // Obter instância do serviço
+                var service = context.RequestServices.GetService(serviceDescriptor.ServiceType);
+                if (service == null)
                 {
-                    if (!context.User.Identity?.IsAuthenticated ?? true)
-                    {
-                        context.Response.StatusCode = 401;
-                        await context.Response.WriteAsync("Unauthorized");
-                        return;
-                    }
-
-                    // If a policy is required, evaluate it through the standard
-                    // ASP.NET Core authorization service.
-                    if (!string.IsNullOrEmpty(requiredPolicy))
-                    {
-                        var authorizationService = context.RequestServices
-                            .GetRequiredService<Microsoft.AspNetCore.Authorization.IAuthorizationService>();
-
-                        var authResult = await authorizationService.AuthorizeAsync(context.User, null, requiredPolicy);
-                        if (!authResult.Succeeded)
-                        {
-                            context.Response.StatusCode = 403;
-                            await context.Response.WriteAsync("Forbidden");
-                            return;
-                        }
-                    }
+                    throw new InvalidOperationException($"Service not found to: {serviceDescriptor.ServiceType}");
                 }
+
+                // Verificar autorização — os requisitos ([Authorize]) são declarados
+                // na classe de implementação, por isso a checagem acontece depois da
+                // resolução do serviço.
+                var implementationType = serviceDescriptor.ImplementationType ?? service.GetType();
+                if (!await IsAuthorizedAsync(context, implementationType, methodInfo))
+                    return;
 
                 // Rate limiting — applied after authorization so anonymous callers
                 // cannot bypass it, but before the service is invoked.
@@ -245,13 +227,6 @@ namespace BlackDigital.AspNet.Rest
                 if (_options.EnableRequestLogging && _options.LogRequestBody)
                 {
                     requestBody = await ReadRequestBody(context);
-                }
-
-                // Obter instância do serviço
-                var service = context.RequestServices.GetService(serviceDescriptor.ServiceType);
-                if (service == null)
-                {
-                    throw new InvalidOperationException($"Service not found to: {serviceDescriptor.ServiceType}");
                 }
 
                 // Preparar parâmetros — rent an array from the pool to avoid
@@ -826,25 +801,87 @@ namespace BlackDigital.AspNet.Rest
         }
 
         /// <summary>
-        /// Combines a service-level policy prefix with an action-level policy suffix.
-        /// When both are present, they are joined with a dot (e.g. <c>Category</c> + <c>Read</c> = <c>Category.Read</c>).
-        /// When only one is present, that value is returned. When neither is present, null is returned.
+        /// Evaluates the <see cref="AuthorizeAttribute"/> requirements declared on
+        /// the service implementation class and on the resolved action method.
+        /// Access is granted when <b>any</b> declared requirement is satisfied;
+        /// when none is, a <c>401</c> (unauthenticated) or <c>403</c> (forbidden)
+        /// <see cref="ProblemDetails"/> response is written.
         /// </summary>
-        /// <param name="servicePolicy">The service-level policy prefix.</param>
-        /// <param name="actionPolicy">The action-level policy suffix.</param>
-        /// <returns>The combined policy name, or null if both are null/empty.</returns>
-        private static string? CombinePolicies(string? servicePolicy, string? actionPolicy)
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="implementationType">The concrete service implementation type.</param>
+        /// <param name="methodInfo">The action method being invoked.</param>
+        /// <returns><c>true</c> when the request may proceed; otherwise, <c>false</c>.</returns>
+        private async Task<bool> IsAuthorizedAsync(HttpContext context, Type implementationType, MethodInfo methodInfo)
         {
-            var hasService = !string.IsNullOrWhiteSpace(servicePolicy);
-            var hasAction = !string.IsNullOrWhiteSpace(actionPolicy);
+            var requirements = AuthorizeAttributeHelper.GetRequirements(implementationType, methodInfo);
 
-            if (hasService && hasAction)
-                return $"{servicePolicy}.{actionPolicy}";
-            if (hasService)
-                return servicePolicy!;
-            if (hasAction)
-                return actionPolicy!;
-            return null;
+            // No requirement declared: the action is public.
+            if (requirements.Count == 0)
+                return true;
+
+            var user = context.User;
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await WriteProblemDetailsAsync(context, StatusCodes.Status401Unauthorized,
+                    "Unauthorized", "Authentication is required to access this resource.");
+                return false;
+            }
+
+            foreach (var requirement in requirements)
+            {
+                if (await MeetsRequirementAsync(context, user, requirement))
+                    return true;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await WriteProblemDetailsAsync(context, StatusCodes.Status403Forbidden,
+                "Forbidden", "The authenticated user is not allowed to access this resource.");
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether an authenticated user satisfies a single
+        /// <see cref="AuthorizeAttribute"/> requirement. A requirement without
+        /// roles and without a policy is satisfied by any authenticated user;
+        /// roles are satisfied by membership in at least one listed role; the
+        /// policy is evaluated through the ASP.NET Core authorization service.
+        /// </summary>
+        /// <param name="context">The HTTP context for the current request.</param>
+        /// <param name="user">The authenticated user.</param>
+        /// <param name="requirement">The requirement to evaluate.</param>
+        /// <returns><c>true</c> when the requirement is satisfied; otherwise, <c>false</c>.</returns>
+        private async Task<bool> MeetsRequirementAsync(HttpContext context, ClaimsPrincipal user, AuthorizeAttribute requirement)
+        {
+            var roles = requirement.Roles;
+            var hasRoles = roles is { Length: > 0 };
+            var policy = requirement.Policy;
+            var hasPolicy = !string.IsNullOrWhiteSpace(policy);
+
+            // [Authorize] without roles and without a policy requires only an
+            // authenticated user.
+            if (!hasRoles && !hasPolicy)
+                return true;
+
+            if (hasRoles && !roles!.Any(user.IsInRole))
+                return false;
+
+            if (hasPolicy)
+            {
+                var authorizationService = context.RequestServices.GetService<IAuthorizationService>();
+                if (authorizationService == null)
+                {
+                    _logger.LogWarning("Policy '{Policy}' was declared but no IAuthorizationService is registered. " +
+                                       "Register the ASP.NET Core authorization services to enforce it.", policy);
+                    return false;
+                }
+
+                var authResult = await authorizationService.AuthorizeAsync(user, null, policy!);
+                if (!authResult.Succeeded)
+                    return false;
+            }
+
+            return true;
         }
 
         /// <summary>

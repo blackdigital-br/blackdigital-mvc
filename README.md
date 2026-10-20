@@ -104,17 +104,21 @@ using BlackDigital.Rest;
 [Service("api/users")]
 public interface IUserService
 {
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
-    [Action(method: RestMethod.Post, authorize: true)]
+    [Action(method: RestMethod.Post)]
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 }
 ```
 
-Implement the interface as a regular class (no controller base class required):
+Implement the interface as a regular class (no controller base class required). Access
+requirements are declared on the **implementation** with `[Authorize]` (from
+`BlackDigital.Domain.Security`), never on the interface:
 
 ```csharp
+using BlackDigital.Domain.Security;
+
 public class UserService : IUserService
 {
     public async Task<User> GetUserAsync(int id)
@@ -123,6 +127,7 @@ public class UserService : IUserService
         return await GetUserByIdAsync(id);
     }
 
+    [Authorize]   // any authenticated user; narrow with [Authorize(Roles = ...)] or [Authorize(Policy = ...)]
     public async Task<User> CreateUserAsync(CreateUserRequest request)
     {
         // Your logic here
@@ -139,7 +144,7 @@ Create complete REST APIs without traditional controllers:
 - **Automatic Binding**: `[Path]`, `[Body]`, `[Query]`, `[Header]` parameters bound automatically
 - **Built-in `Id` support**: Custom model binder and route constraint for `BlackDigital.Model.Id`
 - **CancellationToken**: Request abortion token is bound automatically
-- **Authorization**: Per-action or per-service `authorize` flag
+- **Authorization**: `[Authorize]` (roles/policy) declared on the service implementation
 - **Business exceptions**: `BusinessException` maps directly to HTTP status codes
 - **Full Support**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
 - **Async/Await**: Native support for `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>`
@@ -181,10 +186,10 @@ Automatic, Swashbuckle-free documentation:
 [Service("api/products")]
 public interface IProductService
 {
-    [Action(method: RestMethod.Get, authorize: false)]
+    [Action(method: RestMethod.Get)]
     Task<IEnumerable<Product>> GetProductsAsync();
 
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<Product> GetProductAsync([Path] int id);
 
     [Action(method: RestMethod.Post)]

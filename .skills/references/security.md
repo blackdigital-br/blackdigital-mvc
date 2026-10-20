@@ -111,10 +111,29 @@ Extension methods on `IHttpContextAccessor`:
 
 For the client IP to be trustworthy behind a reverse proxy, the host must register the `ForwardedHeaders` middleware with `KnownProxies` / `KnownNetworks` populated.
 
+## Authorization attribute enforcement
+
+`AuthorizeAttribute` lives in the `BlackDigital.Domain` package (`BlackDigital.Domain.Security`)
+and is pure metadata — it never enforces anything by itself. In this library the
+`RestMiddleware` reads it through `AuthorizeAttributeHelper` and rejects the request when
+no declared requirement is satisfied.
+
+- The attribute is declared on the service **implementation** class and/or its methods, never on the interface (the interface may be shared with the front end).
+- A requirement with no `Roles` and no `Policy` accepts any authenticated user; `Roles` accepts any listed role; `Policy` is evaluated through `IAuthorizationService`.
+- Class-level and method-level requirements are combined with **OR** semantics.
+- Failure produces `401 Unauthorized` (unauthenticated) or `403 Forbidden` (authenticated but not allowed) as `ProblemDetails`.
+
+```csharp
+[Authorize(Roles = new[] { "Admin", "Manager" })]     // any of the listed roles
+[Authorize(Policy = "Category.Write")]                // named authorization policy
+public class OrderService : IOrderService { }
+```
+
 ## Source files
 
 - `src/Security/Argon2idPasswordHashService.cs`
+- `src/Security/AuthorizeAttributeHelper.cs`
 - `src/Services/ServiceHelper.cs`
 - `src/Services/BdHttpContextHelper.cs`
 
-> `JwtTokenService`, `ITokenService`, and `IPasswordHashService` live in the `BlackDigital.Domain` package (namespace `BlackDigital.Domain.Security`), not in this repository.
+> `JwtTokenService`, `ITokenService`, `IPasswordHashService`, and `AuthorizeAttribute` live in the `BlackDigital.Domain` package (namespace `BlackDigital.Domain.Security`), not in this repository.

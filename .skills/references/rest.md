@@ -45,17 +45,16 @@ public interface IUserService { }
 
 ### `[Action]`
 
-Configures the HTTP method, sub-route, and authorization requirement.
+Configures the HTTP method and sub-route.
 
 ```csharp
-[Action("{id}", method: RestMethod.Get, authorize: false)]
+[Action("{id}", method: RestMethod.Get)]
 Task<User> GetUserAsync([Path] int id);
 ```
 
 `ActionAttributeHelper` resolves:
 - route from `Path`, `Route`, `Template`, or `Value`
 - HTTP method from `Method` or `RestMethod` (defaults to GET)
-- authorization from the `Authorize` boolean property/field
 
 ## Parameter binding
 
@@ -88,16 +87,47 @@ Collections support `key=v1&key=v2`, `key[]=v1&key[]=v2`, and indexed `key[0]=v1
 
 ## Authorization
 
-A request requires authentication when **either** the action's `authorize` flag **or** the service's `authorize` flag is `true`. The middleware checks `context.User.Identity.IsAuthenticated` and returns `401 Unauthorized` (plain text) when not authenticated.
+Access requirements are declared with `[Authorize]` (`BlackDigital.Domain.Security`)
+on the service **implementation** — never on the interface, which may be shared with
+the front end. The attribute may be placed on the class (applies to every action) or
+on a method (applies to that action only); the middleware combines both.
 
 ```csharp
-[Service("api/admin", authorize: true)] // all actions require auth by default
 public interface IAdminService
 {
-    [Action("health", method: RestMethod.Get, authorize: false)] // public override
     Task<HealthStatus> GetHealthAsync();
+    Task<string> GetDataAsync();
+}
+
+[Authorize]                                             // every action requires an authenticated user
+public class AdminService : IAdminService
+{
+    public Task<HealthStatus> GetHealthAsync() => ...;   // authenticated user
+
+    [Authorize(Policy = "Category.Write")]               // narrower requirement
+    public Task<string> GetDataAsync() => ...;
 }
 ```
+
+A requirement is satisfied by:
+- no `Roles` and no `Policy` → any authenticated user;
+- `Roles` → membership in **at least one** listed role;
+- `Policy` → the named ASP.NET Core policy (evaluated through `IAuthorizationService`);
+- both → the roles **and** the policy must be satisfied.
+
+Requirements from the class and the method are combined with **OR** semantics: access
+is granted when any single requirement is satisfied, so a class-level `[Authorize]`
+plus a method-level `[Authorize(Roles = ...)]` lets a caller in with either.
+
+When no requirement is satisfied the middleware writes a `ProblemDetails`
+(`application/problem+json`) response: `401 Unauthorized` when the caller is not
+authenticated, `403 Forbidden` when authenticated but not allowed. If a `Policy` is
+declared but no `IAuthorizationService` is registered, the requirement is not met and
+a warning is logged.
+
+`AuthorizeAttributeHelper.GetRequirements(implementationType, interfaceMethod)`
+resolves the requirements for an interface method by locating the matching
+implementation method (via the interface map).
 
 ## Return value handling
 

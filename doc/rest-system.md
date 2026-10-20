@@ -70,19 +70,19 @@ using BlackDigital.Rest;
 [Service("api/users")]
 public interface IUserService
 {
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
-    [Action(method: RestMethod.Post, authorize: true)]
+    [Action(method: RestMethod.Post)]
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 
-    [Action("{id}", method: RestMethod.Put, authorize: true)]
+    [Action("{id}", method: RestMethod.Put)]
     Task<User> UpdateUserAsync([Path] int id, [Body] UpdateUserRequest request);
 
-    [Action("{id}", method: RestMethod.Delete, authorize: true)]
+    [Action("{id}", method: RestMethod.Delete)]
     Task DeleteUserAsync([Path] int id);
 
-    [Action("search", method: RestMethod.Get, authorize: false)]
+    [Action("search", method: RestMethod.Get)]
     Task<List<User>> SearchUsersAsync([Query] string filter, [Query] int page = 1);
 }
 ```
@@ -167,16 +167,29 @@ Defines the service base route:
 ```
 
 #### ActionAttribute
-Configures HTTP methods and specific routes:
+Configures the HTTP method and the specific route:
 ```csharp
-[Action("{id}", method: RestMethod.Get, authorize: false)]
+[Action("{id}", method: RestMethod.Get)]
 // Route: GET /api/users/{id}
-// Authorization: not required
 
 [Action("search", method: RestMethod.Get)]
 // Route: GET /api/users/search
-// Authorization: required (default)
 ```
+
+#### AuthorizeAttribute (on the implementation)
+Authorization is **not** configured through `[Service]`/`[Action]`. It is declared with
+`[Authorize]` (`BlackDigital.Domain.Security`) on the service **implementation** class
+and/or method:
+
+```csharp
+[Authorize]                              // any authenticated user
+[Authorize(Roles = new[] { "Admin" })]   // any of the listed roles
+[Authorize(Policy = "Users.Write")]      // named authorization policy
+```
+
+Class-level requirements apply to every action; method-level ones apply to that action
+only. When several requirements apply, access is granted when **any** of them is
+satisfied (OR).
 
 #### Binding Attributes
 - **`[Path]`**: Extracts values from URL route
@@ -191,7 +204,7 @@ Configures HTTP methods and specific routes:
 public interface IUserService
 {
     // GET /api/users/{id}
-    [Action("{id}", method: RestMethod.Get, authorize: false)]
+    [Action("{id}", method: RestMethod.Get)]
     Task<User> GetUserAsync([Path] int id);
 
     // POST /api/users
@@ -199,7 +212,7 @@ public interface IUserService
     Task<User> CreateUserAsync([Body] CreateUserRequest request);
 
     // GET /api/users/search?filter=john&page=1&size=10
-    [Action("search", method: RestMethod.Get, authorize: false)]
+    [Action("search", method: RestMethod.Get)]
     Task<PagedResult<User>> SearchAsync(
         [Query] string filter,
         [Query] int page = 1,
@@ -218,23 +231,48 @@ public interface IUserService
 
 ### 5. Example with Authorization
 
+Access requirements are declared on the service **implementation**, not on the interface.
+Declare them per method when only some actions are protected:
+
 ```csharp
 [Service("api/admin")]
 public interface IAdminService
 {
-    // Public - no authorization required
-    [Action("health", method: RestMethod.Get, authorize: false)]
     Task<HealthStatus> GetHealthAsync();
-
-    // Requires authorization (default)
-    [Action("users", method: RestMethod.Get)]
     Task<List<User>> GetAllUsersAsync();
-
-    // Requires specific authorization
-    [Action("users/{id}/ban", method: RestMethod.Post, authorize: true)]
+    Task<string> GetReportsAsync();
     Task BanUserAsync([Path] int id, [Body] BanRequest request);
 }
+
+public class AdminService : IAdminService
+{
+    // No [Authorize] → public.
+    public Task<HealthStatus> GetHealthAsync() => ...;
+
+    // Any authenticated user.
+    [Authorize]
+    public Task<List<User>> GetAllUsersAsync() => ...;
+
+    // Only "Admin" or "Manager".
+    [Authorize(Roles = new[] { "Admin", "Manager" })]
+    public Task<string> GetReportsAsync() => ...;
+
+    // Narrowed by a named policy.
+    [Authorize(Policy = "Users.Ban")]
+    public Task BanUserAsync(int id, BanRequest request) => ...;
+}
 ```
+
+Or protect every action at once with a class-level requirement:
+
+```csharp
+[Authorize(Policy = "Admin")]
+public class AuditService : IAuditService { /* ... */ }
+```
+
+When the caller is not authenticated the middleware returns `401 Unauthorized`; when
+authenticated but not allowed, `403 Forbidden`. Both are `ProblemDetails`
+(`application/problem+json`) responses.
 
 ## Integration with Transformation System
 
@@ -563,9 +601,9 @@ The `RestMiddleware` is the heart of the REST system, responsible for intercepti
 public interface IUserService { }
 ```
 
-**ActionAttribute**: Configures HTTP methods and specific routes
+**ActionAttribute**: Configures the HTTP method and specific route
 ```csharp
-[Action(method: RestMethod.Get, route: "{id}", authorize: true)]
+[Action(method: RestMethod.Get, route: "{id}")]
 Task<User> GetUserAsync([Path] int id);
 ```
 
@@ -631,20 +669,28 @@ builder.Services.AddRestServices(rest =>
 
 **Flexible Authorization:**
 
-Authorization is controlled by the `authorize` boolean flag, which can be set at the **action** level or inherited from the **service** (`[Service]`) level. When either is `true`, the middleware checks `context.User.Identity.IsAuthenticated` and returns `401 Unauthorized` if the user is not authenticated.
+Authorization is declared with `[Authorize]` (`BlackDigital.Domain.Security`) on the
+service **implementation** — on the class (applies to every action) or on a method
+(applies to that action only). Use `Roles` and/or `Policy` to narrow access; when
+several requirements apply, any satisfied requirement grants access (OR). The
+middleware returns `401 Unauthorized` for unauthenticated callers and `403 Forbidden`
+for authenticated callers that do not satisfy any requirement, both as `ProblemDetails`.
 
 ```csharp
-[Service("api/admin")]
 public interface IAdminService
 {
-    // Public — no authorization required
-    [Action("health", method: RestMethod.Get, authorize: false)]
     Task<HealthStatus> GetHealthAsync();
-
-    // Requires authorization (authorize defaults to true at action level,
-    // or inherit true from [Service] when the action omits it)
-    [Action("users", method: RestMethod.Get, authorize: true)]
     Task<List<User>> GetAllUsersAsync();
+}
+
+public class AdminService : IAdminService
+{
+    // Public — no authorization required
+    public Task<HealthStatus> GetHealthAsync() => ...;
+
+    // Requires an authenticated user
+    [Authorize]
+    public Task<List<User>> GetAllUsersAsync() => ...;
 }
 ```
 

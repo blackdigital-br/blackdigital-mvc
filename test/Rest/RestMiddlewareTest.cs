@@ -1,5 +1,6 @@
 using BlackDigital.AspNet.Rest;
 using BlackDigital.Rest;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using AuthorizeAttribute = BlackDigital.Domain.Security.AuthorizeAttribute;
 
 namespace BlackDigital.AspNet.Test.Rest
 {
@@ -370,26 +372,225 @@ namespace BlackDigital.AspNet.Test.Rest
             Assert.IsType<JsonSerializerOptions>(result);
         }
 
-        [Theory]
-        [InlineData(null, null, null)]
-        [InlineData("", "", null)]
-        [InlineData("  ", "   ", null)]
-        [InlineData("Category", null, "Category")]
-        [InlineData(null, "Read", "Read")]
-        [InlineData("Category", "Read", "Category.Read")]
-        [InlineData("Category", "", "Category")]
-        [InlineData("", "Read", "Read")]
-        public void CombinePolicies_ShouldReturnExpectedValue(string? servicePolicy, string? actionPolicy, string? expected)
+        // --- Authorization ([Authorize] on the implementation) ---
+
+        public interface IAuthService
+        {
+            Task<string> GetPublicAsync();
+            Task<string> GetAuthenticatedAsync();
+            Task<string> GetAdminAsync();
+            Task<string> GetPolicyAsync();
+        }
+
+        public class AuthService : IAuthService
+        {
+            public Task<string> GetPublicAsync() => Task.FromResult("public");
+
+            [Authorize]
+            public Task<string> GetAuthenticatedAsync() => Task.FromResult("authenticated");
+
+            [Authorize(Roles = new[] { "Admin" })]
+            public Task<string> GetAdminAsync() => Task.FromResult("admin");
+
+            [Authorize(Policy = "Read")]
+            public Task<string> GetPolicyAsync() => Task.FromResult("policy");
+        }
+
+        public interface IClassAuthService
+        {
+            Task<string> GetAsync();
+            Task<string> GetAdminAsync();
+        }
+
+        // Class-level requirement applies to every action; the method-level one
+        // is additional and combined with OR semantics.
+        [Authorize(Roles = new[] { "Manager" })]
+        public class ClassAuthService : IClassAuthService
+        {
+            public Task<string> GetAsync() => Task.FromResult("value");
+
+            [Authorize(Roles = new[] { "Admin" })]
+            public Task<string> GetAdminAsync() => Task.FromResult("admin");
+        }
+
+        private static ClaimsPrincipal CreateUser(params string[] roles)
+        {
+            var claims = roles.Select(role => new Claim(ClaimTypes.Role, role));
+            return new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
+        }
+
+        private static DefaultHttpContext CreateAuthContext(ClaimsPrincipal? user = null, IServiceProvider? services = null)
+        {
+            var context = new DefaultHttpContext
+            {
+                RequestServices = services ?? new ServiceCollection().BuildServiceProvider(),
+                User = user ?? new ClaimsPrincipal(new ClaimsIdentity())
+            };
+            context.Response.Body = new MemoryStream();
+            return context;
+        }
+
+        private static Task<bool> InvokeIsAuthorizedAsync(RestMiddleware middleware, HttpContext context,
+                                                          Type implementationType, MethodInfo methodInfo)
+        {
+            var method = typeof(RestMiddleware)
+                .GetMethod("IsAuthorizedAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            return (Task<bool>)method.Invoke(middleware, new object[] { context, implementationType, methodInfo })!;
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenNoRequirements_ShouldReturnTrue()
         {
             // Arrange
-            var combinePoliciesMethod = typeof(RestMiddleware)
-                .GetMethod("CombinePolicies", BindingFlags.NonPublic | BindingFlags.Static);
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext();
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetPublicAsync))!;
 
             // Act
-            var result = combinePoliciesMethod?.Invoke(null, new object?[] { servicePolicy, actionPolicy });
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
 
             // Assert
-            Assert.Equal(expected, result);
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenUnauthenticated_ShouldReturnFalseAndWrite401()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext();
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetAuthenticatedAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.False(result);
+            Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenAuthenticated_ShouldReturnTrue()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext(CreateUser());
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetAuthenticatedAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenAuthenticatedRoleMatches_ShouldReturnTrue()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext(CreateUser("Admin"));
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetAdminAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenAuthenticatedRoleDoesNotMatch_ShouldReturnFalseAndWrite403()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext(CreateUser("User"));
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetAdminAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.False(result);
+            Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenAnyRequirementSatisfied_ShouldReturnTrue()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            // Class requires "Manager", method requires "Admin"; holding only
+            // "Admin" satisfies the method requirement (OR semantics).
+            var context = CreateAuthContext(CreateUser("Admin"));
+            var methodInfo = typeof(IClassAuthService).GetMethod(nameof(IClassAuthService.GetAdminAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(ClassAuthService), methodInfo);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenPolicySatisfied_ShouldReturnTrue()
+        {
+            // Arrange
+            var authorizationService = new Mock<IAuthorizationService>();
+            authorizationService
+                .Setup(x => x.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object?>(), It.IsAny<string>()))
+                .ReturnsAsync(AuthorizationResult.Success());
+            var services = new ServiceCollection();
+            services.AddSingleton(authorizationService.Object);
+            var context = CreateAuthContext(CreateUser(), services.BuildServiceProvider());
+
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetPolicyAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenPolicyNotSatisfied_ShouldReturnFalseAndWrite403()
+        {
+            // Arrange
+            var authorizationService = new Mock<IAuthorizationService>();
+            authorizationService
+                .Setup(x => x.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object?>(), It.IsAny<string>()))
+                .ReturnsAsync(AuthorizationResult.Failed());
+            var services = new ServiceCollection();
+            services.AddSingleton(authorizationService.Object);
+            var context = CreateAuthContext(CreateUser(), services.BuildServiceProvider());
+
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetPolicyAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.False(result);
+            Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task IsAuthorizedAsync_WhenPolicyDeclaredButNoAuthorizationService_ShouldReturnFalse()
+        {
+            // Arrange
+            var middleware = CreateMiddleware(new ServiceCollection());
+            var context = CreateAuthContext(CreateUser());
+            var methodInfo = typeof(IAuthService).GetMethod(nameof(IAuthService.GetPolicyAsync))!;
+
+            // Act
+            var result = await InvokeIsAuthorizedAsync(middleware, context, typeof(AuthService), methodInfo);
+
+            // Assert
+            Assert.False(result);
         }
 
         // --- CancellationToken binding ---
